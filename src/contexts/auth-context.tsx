@@ -12,6 +12,7 @@ interface User {
   email: string;
   role: 'patient' | 'physiotherapist' | 'admin';
   token?: string;
+  profilePicture?: string;
 }
 
 interface AuthContextType {
@@ -61,7 +62,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email: 'demo@example.com',
         role: 'patient' as const,
         token: mockToken,
-        profilePicture: `https://api.dicebear.com/7.x/avataaars/svg?seed=demo`
+        profilePicture: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop"
       };
 
       localStorage.setItem('token', mockToken);

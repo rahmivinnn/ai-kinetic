@@ -26,6 +26,7 @@ interface Exercise {
   duration?: number;
   notes?: string;
   treatmentPlanId: string;
+  animationDelay?: number; // allow animationDelay injected in mapping
 }
 
 export function ExercisePlan() {
@@ -41,7 +42,7 @@ export function ExercisePlan() {
         const data = await exerciseAPI.getUserExercises();
 
         // Add animation delay for each exercise
-        const enhancedData = data.map((exercise, index) => ({
+        const enhancedData = data.map((exercise: Exercise, index: number) => ({
           ...exercise,
           animationDelay: index * 150 // 150ms delay between each exercise
         }));
@@ -413,7 +414,7 @@ export function ExercisePlan() {
         </div>
 
         <div className="space-y-4">
-          {exercises.map((exercise: any) => (
+          {exercises.map((exercise: Exercise, index: number) => (
             <div
               key={exercise.id}
               className={`border rounded-lg overflow-hidden transition-all duration-300 transform hover:shadow-md ${

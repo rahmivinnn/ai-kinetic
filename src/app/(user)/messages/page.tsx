@@ -146,7 +146,7 @@ export default function Messages() {
       sender: "You",
       content: newMessage,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      avatar: user?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
+      avatar: (user && 'profilePicture' in user ? (user as any).profilePicture : undefined) || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
       isRead: true
     };
 
