@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import Link from "next/link";
 import Image from "next/image";
 
 export default function WelcomePage() {
@@ -136,9 +135,11 @@ export default function WelcomePage() {
           </div>
           <div className="md:w-1/2 flex justify-center">
             <div className="relative w-full max-w-md h-80 bg-gray-100 rounded-lg overflow-hidden">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&h=350&fit=crop"
                 alt="Physiotherapy"
+                width={500}
+                height={350}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -212,9 +213,11 @@ export default function WelcomePage() {
         <div className="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100">
             <div className="flex items-center mb-4">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop"
                 alt="Sarah Johnson"
+                width={64}
+                height={64}
                 className="h-16 w-16 rounded-full object-cover mr-4"
               />
               <div>
@@ -223,7 +226,7 @@ export default function WelcomePage() {
               </div>
             </div>
             <p className="text-gray-600 italic mb-4">
-              "Kinetic AI transformed my recovery journey. The personalized exercise plans and real-time feedback helped me recover faster than expected."
+              &quot;Kinetic AI transformed my recovery journey. The personalized exercise plans and real-time feedback helped me recover faster than expected.&quot;
             </p>
             <div className="flex">
               {[...Array(5)].map((_, i) => (
@@ -236,9 +239,11 @@ export default function WelcomePage() {
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100">
             <div className="flex items-center mb-4">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop"
                 alt="Michael Chen"
+                width={64}
+                height={64}
                 className="h-16 w-16 rounded-full object-cover mr-4"
               />
               <div>
@@ -247,7 +252,7 @@ export default function WelcomePage() {
               </div>
             </div>
             <p className="text-gray-600 italic mb-4">
-              "The video analysis feature is incredible! It helped me correct my form and prevent further injuries. Highly recommended!"
+              &quot;The video analysis feature is incredible! It helped me correct my form and prevent further injuries. Highly recommended!&quot;
             </p>
             <div className="flex">
               {[...Array(5)].map((_, i) => (
@@ -260,9 +265,11 @@ export default function WelcomePage() {
 
           <div className="bg-white p-6 rounded-lg shadow-md border border-gray-100">
             <div className="flex items-center mb-4">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&h=150&fit=crop"
                 alt="Emma Rodriguez"
+                width={64}
+                height={64}
                 className="h-16 w-16 rounded-full object-cover mr-4"
               />
               <div>
@@ -271,7 +278,7 @@ export default function WelcomePage() {
               </div>
             </div>
             <p className="text-gray-600 italic mb-4">
-              "The video calls with my physiotherapist made all the difference. It's like having a personal coach available whenever I need guidance."
+              &quot;The video calls with my physiotherapist made all the difference. It&apos;s like having a personal coach available whenever I need guidance.&quot;
             </p>
             <div className="flex">
               {[...Array(4)].map((_, i) => (
