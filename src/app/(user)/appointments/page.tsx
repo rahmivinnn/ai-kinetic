@@ -76,7 +76,7 @@ export default function AppointmentsPage() {
   const fetchAppointments = async () => {
     try {
       setLoading(true);
-      const data = await appointmentAPI.getAppointments();
+      const data = await appointmentAPI.getUserAppointments();
       setAppointments(data);
       toast.success("Appointments loaded successfully");
     } catch (error) {
@@ -571,7 +571,7 @@ export default function AppointmentsPage() {
                 <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">No cancelled appointments</h3>
                 <p className="text-muted-foreground text-center">
-                  You don't have any cancelled appointments.
+                  You don&apos;t have any cancelled appointments.
                 </p>
               </CardContent>
             </Card>
