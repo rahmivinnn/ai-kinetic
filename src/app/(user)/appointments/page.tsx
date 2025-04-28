@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Custom date formatting and manipulation functions
-const formatDate = (date, format) => {
-  const options = {
+const formatDate = (date: Date, format: string): string => {
+  const options: Record<string, Intl.DateTimeFormatOptions> = {
     'MMM d': { month: 'short', day: 'numeric' },
     'MMM d, yyyy': { month: 'short', day: 'numeric', year: 'numeric' },
     'EEE': { weekday: 'short' },
@@ -26,24 +26,24 @@ const formatDate = (date, format) => {
   return date.toLocaleDateString('en-US', options[format] || {});
 };
 
-const addDays = (date, days) => {
+const addDays = (date: Date, days: number): Date => {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result;
 };
 
-const startOfWeek = (date) => {
+const startOfWeek = (date: Date): Date => {
   const result = new Date(date);
   const day = result.getDay();
   result.setDate(result.getDate() - day);
   return result;
 };
 
-const addWeeks = (date, weeks) => {
+const addWeeks = (date: Date, weeks: number): Date => {
   return addDays(date, weeks * 7);
 };
 
-const subWeeks = (date, weeks) => {
+const subWeeks = (date: Date, weeks: number): Date => {
   return addDays(date, -weeks * 7);
 };
 import { Badge } from '@/components/ui/badge';
@@ -409,7 +409,7 @@ export default function AppointmentsPage() {
                 <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">No upcoming appointments</h3>
                 <p className="text-muted-foreground text-center mb-6">
-                  You don't have any upcoming appointments scheduled.
+                  You don&apos;t have any upcoming appointments scheduled.
                 </p>
                 <Button onClick={() => setOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
@@ -491,7 +491,7 @@ export default function AppointmentsPage() {
                 <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium mb-2">No past appointments</h3>
                 <p className="text-muted-foreground text-center mb-6">
-                  You don't have any past appointments.
+                  You don&apos;t have any past appointments.
                 </p>
                 <Button onClick={() => setOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
