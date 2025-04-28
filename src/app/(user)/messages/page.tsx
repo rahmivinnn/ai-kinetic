@@ -146,7 +146,7 @@ export default function Messages() {
       sender: "You",
       content: newMessage,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      avatar: (user && 'profilePicture' in user ? (user as any).profilePicture : undefined) || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
+      avatar: (user as any)?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
       isRead: true
     };
 
@@ -240,7 +240,7 @@ export default function Messages() {
             sender: "You",
             content: "Hi! How's my progress looking?",
             timestamp: "Yesterday",
-            avatar: user?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
+            avatar: (user as any)?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
             isRead: true
           },
           {
@@ -283,7 +283,7 @@ export default function Messages() {
             sender: "You",
             content: "That's great news! When do you think I can return to my regular activities?",
             timestamp: "Monday",
-            avatar: user?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
+            avatar: (user as any)?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
             isRead: true
           },
           {
@@ -310,7 +310,7 @@ export default function Messages() {
             sender: "You",
             content: "Hi! I'm having trouble uploading my exercise videos. The upload seems to get stuck at 80%.",
             timestamp: "Last week",
-            avatar: user?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
+            avatar: (user as any)?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
             isRead: true
           },
           {
@@ -326,7 +326,7 @@ export default function Messages() {
             sender: "You",
             content: "I'm using Chrome on my iPhone.",
             timestamp: "Last week",
-            avatar: user?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
+            avatar: (user as any)?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
             isRead: true
           },
           {
@@ -342,7 +342,7 @@ export default function Messages() {
             sender: "You",
             content: "I'll try that. Thanks!",
             timestamp: "Last week",
-            avatar: user?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
+            avatar: (user as any)?.profilePicture || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=50&h=50&fit=crop",
             isRead: true
           },
           {
