@@ -6,9 +6,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoUploadForm } from "@/components/user/video-upload";
 import { ExercisePlan } from "@/components/user/exercise-plan";
 import { VideoAnalysis } from "@/components/user/video-analysis";
-import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video } from "lucide-react";
+import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { appointmentAPI } from "@/lib/api";
 import { toast } from "sonner";
@@ -22,6 +23,34 @@ const UserHome = () => {
 
   const [activeTab, setActiveTab] = useState('exercise-plan');
   const [showWelcomeToast, setShowWelcomeToast] = useState(true);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [refreshingStats, setRefreshingStats] = useState(false);
+  const [completedExercises, setCompletedExercises] = useState<string[]>([]);
+
+  const toggleCardExpansion = (cardId: string) => {
+    if (expandedCard === cardId) {
+      setExpandedCard(null);
+    } else {
+      setExpandedCard(cardId);
+      toast.info(`Viewing details for ${cardId}`);
+    }
+  };
+
+  const refreshStats = () => {
+    setRefreshingStats(true);
+    toast.info("Refreshing dashboard statistics...");
+
+    setTimeout(() => {
+      setDashboardStats({
+        exercisesCompleted: Math.floor(Math.random() * 50) + 20,
+        streak: Math.floor(Math.random() * 10) + 1,
+        progress: Math.floor(Math.random() * 40) + 60,
+        nextMilestone: Math.floor(Math.random() * 5) + 5
+      });
+      setRefreshingStats(false);
+      toast.success("Dashboard statistics updated!");
+    }, 1500);
+  };
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -122,7 +151,10 @@ const UserHome = () => {
             </p>
           </div>
           <div className="mt-4 md:mt-0 flex items-center gap-4">
-            <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-100">
+            <div
+              className="bg-white p-3 rounded-lg shadow-sm border border-blue-100 cursor-pointer hover:shadow-md transition-all"
+              onClick={() => toggleCardExpansion('recovery')}
+            >
               <div className="flex items-center gap-2">
                 <div className="bg-blue-100 p-2 rounded-full">
                   <Activity className="h-5 w-5 text-blue-700" />
@@ -131,9 +163,32 @@ const UserHome = () => {
                   <p className="text-sm font-medium text-blue-900">{dashboardStats.progress}%</p>
                   <p className="text-xs text-blue-700">Recovery</p>
                 </div>
+                {expandedCard === 'recovery' ? (
+                  <ChevronUp className="h-4 w-4 text-blue-700" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-blue-700" />
+                )}
               </div>
+              {expandedCard === 'recovery' && (
+                <div className="mt-3 pt-3 border-t border-blue-100">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs text-blue-700">Progress</span>
+                    <span className="text-xs font-medium">{dashboardStats.progress}%</span>
+                  </div>
+                  <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 rounded-full"
+                      style={{ width: `${dashboardStats.progress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-2">Next milestone: {dashboardStats.nextMilestone} days</p>
+                </div>
+              )}
             </div>
-            <div className="bg-white p-3 rounded-lg shadow-sm border border-blue-100">
+            <div
+              className="bg-white p-3 rounded-lg shadow-sm border border-blue-100 cursor-pointer hover:shadow-md transition-all"
+              onClick={() => toggleCardExpansion('streak')}
+            >
               <div className="flex items-center gap-2">
                 <div className="bg-orange-100 p-2 rounded-full">
                   <span className="text-orange-700 text-sm font-bold">🔥</span>
@@ -142,8 +197,40 @@ const UserHome = () => {
                   <p className="text-sm font-medium text-blue-900">{dashboardStats.streak} days</p>
                   <p className="text-xs text-blue-700">Streak</p>
                 </div>
+                {expandedCard === 'streak' ? (
+                  <ChevronUp className="h-4 w-4 text-blue-700" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-blue-700" />
+                )}
               </div>
+              {expandedCard === 'streak' && (
+                <div className="mt-3 pt-3 border-t border-blue-100">
+                  <p className="text-xs text-blue-700">Keep going! You're on a roll!</p>
+                  <div className="flex items-center gap-1 mt-2">
+                    {Array.from({ length: Math.min(dashboardStats.streak, 7) }).map((_, i) => (
+                      <div key={i} className="h-2 w-2 rounded-full bg-orange-500"></div>
+                    ))}
+                    {Array.from({ length: Math.max(0, 7 - Math.min(dashboardStats.streak, 7)) }).map((_, i) => (
+                      <div key={i} className="h-2 w-2 rounded-full bg-gray-200"></div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-green-600 mt-2">+{dashboardStats.streak} days streak bonus!</p>
+                </div>
+              )}
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-white border-blue-100 text-blue-700 hover:bg-blue-50"
+              onClick={refreshStats}
+              disabled={refreshingStats}
+            >
+              {refreshingStats ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         </div>
       </div>
@@ -199,10 +286,12 @@ const UserHome = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-3 p-2 bg-muted rounded-lg">
-                  <img
+                  <Image
                     src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=50&h=50&fit=crop"
                     alt="Dr. Johnson"
-                    className="h-8 w-8 rounded-full object-cover"
+                    width={32}
+                    height={32}
+                    className="rounded-full object-cover"
                   />
                   <div>
                     <p className="text-sm font-medium">Dr. {appointments[0].physiotherapist?.lastName || 'Johnson'}</p>
@@ -261,13 +350,89 @@ const UserHome = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2 mt-3">
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <p className="text-2xl font-bold text-green-700">{dashboardStats.exercisesCompleted}</p>
+                <div
+                  className="bg-muted/50 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors"
+                  onClick={() => toggleCardExpansion('exercises')}
+                >
+                  <div className="flex justify-between items-center">
+                    <p className="text-2xl font-bold text-green-700">{dashboardStats.exercisesCompleted}</p>
+                    {expandedCard === 'exercises' ? (
+                      <ChevronUp className="h-4 w-4 text-green-700" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-green-700" />
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">Exercises completed</p>
+
+                  {expandedCard === 'exercises' && (
+                    <div className="mt-2 pt-2 border-t border-muted">
+                      <div className="flex justify-between items-center text-xs">
+                        <span>This week:</span>
+                        <span className="font-medium text-green-700">+{Math.floor(dashboardStats.exercisesCompleted * 0.3)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs mt-1">
+                        <span>Last week:</span>
+                        <span className="font-medium">{Math.floor(dashboardStats.exercisesCompleted * 0.7)}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full mt-2 h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast.success("Viewing exercise history");
+                          router.push('/progress-analytics');
+                        }}
+                      >
+                        View History
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <div className="bg-muted/50 p-3 rounded-lg">
-                  <p className="text-2xl font-bold text-orange-500">{dashboardStats.streak} days</p>
+
+                <div
+                  className="bg-muted/50 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors"
+                  onClick={() => toggleCardExpansion('streak-details')}
+                >
+                  <div className="flex justify-between items-center">
+                    <p className="text-2xl font-bold text-orange-500">{dashboardStats.streak} days</p>
+                    {expandedCard === 'streak-details' ? (
+                      <ChevronUp className="h-4 w-4 text-orange-500" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-orange-500" />
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">Current streak</p>
+
+                  {expandedCard === 'streak-details' && (
+                    <div className="mt-2 pt-2 border-t border-muted">
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 7 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className={`h-2 w-2 rounded-full ${i < dashboardStats.streak % 7 ? 'bg-orange-500' : 'bg-gray-200'}`}
+                          ></div>
+                        ))}
+                      </div>
+                      <p className="text-xs mt-2">
+                        {dashboardStats.streak > 0
+                          ? `You've been consistent for ${dashboardStats.streak} days!`
+                          : 'Start your streak today!'}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full mt-2 h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast.success("Viewing streak details");
+                          router.push('/progress-analytics');
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
