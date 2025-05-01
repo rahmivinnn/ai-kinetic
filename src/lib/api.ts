@@ -94,8 +94,20 @@ export const videoAPI = {
     });
     return response.data;
   },
+  uploadLibraryVideo: async (formData: FormData) => {
+    const response = await api.post('/videos/library/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
   getUserVideos: async () => {
     const response = await api.get('/videos');
+    return response.data;
+  },
+  getLibraryVideos: async () => {
+    const response = await api.get('/videos/library');
     return response.data;
   },
   getVideoById: async (id: string) => {
@@ -108,6 +120,10 @@ export const videoAPI = {
   },
   addTherapistReview: async (id: string, reviewData: any) => {
     const response = await api.post(`/videos/${id}/review`, reviewData);
+    return response.data;
+  },
+  getVideoCategories: async () => {
+    const response = await api.get('/videos/categories');
     return response.data;
   },
 };
