@@ -239,7 +239,7 @@ export default function VideoLib() {
             <Tabs
               value={activeTab}
               onValueChange={handleTabChange}
-              className="flex space-x-2 text-sm text-muted-foreground w-full"
+              className="flex flex-col space-y-2 text-sm text-muted-foreground w-full"
             >
               <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
                 <TabsTrigger
@@ -271,6 +271,257 @@ export default function VideoLib() {
                   Feedback History
                 </TabsTrigger>
               </TabsList>
+
+              {/* Tab Content */}
+              <TabsContent value="my-submissions" className="mt-0 space-y-8">
+                {/* Recent Submissions */}
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold">Recent Submissions</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {recentSubmissions.map((submission) => (
+                      <Card key={submission.id} className="p-4 space-y-4">
+                        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                          <PlayCircle className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="text-sm text-muted-foreground">
+                            {submission.date}
+                          </div>
+                          <h3 className="font-semibold">{submission.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {submission.description}
+                          </p>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => toast.info(`Viewing ${submission.id === "1" ? "video" : submission.id === "2" ? "feedback" : "analysis"}`)}
+                            >
+                              {submission.id === "1"
+                                ? "View Video"
+                                : submission.id === "2"
+                                ? "View Feedback"
+                                : "View Analysis"}
+                            </Button>
+                            {submission.id !== "1" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => toast.success("Report downloaded")}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Video Submission History */}
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold">Video Submission History</h2>
+                  <div className="bg-card rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left p-4">Date</th>
+                          <th className="text-left p-4">Exercise Type</th>
+                          <th className="text-left p-4">Duration</th>
+                          <th className="text-left p-4">Status</th>
+                          <th className="text-left p-4">AI Score</th>
+                          <th className="text-left p-4"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recentSubmissions.map((submission) => (
+                          <tr key={submission.id} className="border-b hover:bg-muted/50 cursor-pointer">
+                            <td className="p-4">{submission.date}</td>
+                            <td className="p-4">{submission.title}</td>
+                            <td className="p-4">{submission.duration}</td>
+                            <td className="p-4">{submission.status}</td>
+                            <td className="p-4">{submission.aiScore}</td>
+                            <td className="p-4">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toast.info(`Viewing video for ${submission.title}`)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toast.info(`Viewing details for ${submission.title}`)}
+                              >
+                                <Info className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="library" className="mt-0 space-y-8">
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <>
+                    {filteredLibraryVideos.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {filteredLibraryVideos.map((video) => (
+                          <Card key={video.id} className="overflow-hidden">
+                            <div className="relative">
+                              <div className="aspect-video overflow-hidden">
+                                <Image
+                                  src={video.thumbnailUrl}
+                                  alt={video.title}
+                                  width={500}
+                                  height={300}
+                                  className="object-cover w-full h-full transition-transform hover:scale-105"
+                                />
+                              </div>
+                              <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.level.charAt(0).toUpperCase() + video.level.slice(1)}
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center">
+                                <Eye className="h-3 w-3 mr-1" /> {video.views.toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="p-4">
+                              <div className="text-sm font-medium text-primary mb-1">
+                                {video.category.charAt(0).toUpperCase() + video.category.slice(1)} Exercises
+                              </div>
+                              <h3 className="font-semibold text-lg mb-2">{video.title}</h3>
+                              <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                                {video.description}
+                              </p>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
+                                <span>By {video.uploadedBy}</span>
+                                <span>{video.uploadDate}</span>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => toast.info(`Playing ${video.title}`)}
+                                >
+                                  <PlayCircle className="h-4 w-4 mr-2" /> Play
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toast.success(`Saved ${video.title} to favorites`)}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toast.success(`Downloaded ${video.title}`)}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 bg-muted/30 rounded-lg">
+                        <h3 className="text-lg font-medium mb-2">No videos found</h3>
+                        <p className="text-muted-foreground mb-4">Try adjusting your search or filters</p>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSearchQuery("");
+                            setSelectedCategory("all");
+                            setSelectedLevel("all");
+                          }}
+                        >
+                          Clear Filters
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+
+              <TabsContent value="exercise-demos" className="mt-0 space-y-8">
+                {/* Recommended Exercise Videos */}
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold">Recommended Exercise Videos</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {recommendedVideos.map((video) => (
+                      <Card key={video.id} className="p-4 space-y-4">
+                        <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                          <PlayCircle className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-primary">
+                            {video.level}
+                          </div>
+                          <h3 className="font-semibold">{video.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {video.description}
+                          </p>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => toast.info(`Watching demo for ${video.title}`)}
+                          >
+                            Watch Demo
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="feedback" className="mt-0 space-y-8">
+                {/* Therapist Feedback */}
+                <div className="space-y-4">
+                  <h2 className="text-xl font-semibold">Therapist Feedback</h2>
+                  <div className="space-y-4">
+                    {feedbacks.map((feedback) => (
+                      <Card key={feedback.id} className="p-4">
+                        <div className="flex items-start space-x-4">
+                          <Image
+                            src={feedback.avatar}
+                            alt={feedback.therapist}
+                            width={40}
+                            height={40}
+                            className="rounded-full"
+                          />
+                          <div className="flex-1">
+                            <h3 className="font-semibold">{feedback.exercise}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {feedback.feedback}
+                            </p>
+                            <div className="flex justify-end mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => toast.success(`Replied to ${feedback.therapist}`)}
+                              >
+                                Reply
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
             </Tabs>
           </div>
         </div>
@@ -352,256 +603,7 @@ export default function VideoLib() {
           </div>
         )}
 
-        {/* Tab Content */}
-        <TabsContent value="my-submissions" className="mt-0 space-y-8">
-          {/* Recent Submissions */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Recent Submissions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {recentSubmissions.map((submission) => (
-                <Card key={submission.id} className="p-4 space-y-4">
-                  <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                    <PlayCircle className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">
-                      {submission.date}
-                    </div>
-                    <h3 className="font-semibold">{submission.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {submission.description}
-                    </p>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => toast.info(`Viewing ${submission.id === "1" ? "video" : submission.id === "2" ? "feedback" : "analysis"}`)}
-                      >
-                        {submission.id === "1"
-                          ? "View Video"
-                          : submission.id === "2"
-                          ? "View Feedback"
-                          : "View Analysis"}
-                      </Button>
-                      {submission.id !== "1" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toast.success("Report downloaded")}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
 
-          {/* Video Submission History */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Video Submission History</h2>
-            <div className="bg-card rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-4">Date</th>
-                    <th className="text-left p-4">Exercise Type</th>
-                    <th className="text-left p-4">Duration</th>
-                    <th className="text-left p-4">Status</th>
-                    <th className="text-left p-4">AI Score</th>
-                    <th className="text-left p-4"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentSubmissions.map((submission) => (
-                    <tr key={submission.id} className="border-b hover:bg-muted/50 cursor-pointer">
-                      <td className="p-4">{submission.date}</td>
-                      <td className="p-4">{submission.title}</td>
-                      <td className="p-4">{submission.duration}</td>
-                      <td className="p-4">{submission.status}</td>
-                      <td className="p-4">{submission.aiScore}</td>
-                      <td className="p-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toast.info(`Viewing video for ${submission.title}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toast.info(`Viewing details for ${submission.title}`)}
-                        >
-                          <Info className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="library" className="mt-0 space-y-8">
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <>
-              {filteredLibraryVideos.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {filteredLibraryVideos.map((video) => (
-                    <Card key={video.id} className="overflow-hidden">
-                      <div className="relative">
-                        <div className="aspect-video overflow-hidden">
-                          <Image
-                            src={video.thumbnailUrl}
-                            alt={video.title}
-                            width={500}
-                            height={300}
-                            className="object-cover w-full h-full transition-transform hover:scale-105"
-                          />
-                        </div>
-                        <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                          {video.level.charAt(0).toUpperCase() + video.level.slice(1)}
-                        </div>
-                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center">
-                          <Eye className="h-3 w-3 mr-1" /> {video.views.toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <div className="text-sm font-medium text-primary mb-1">
-                          {video.category.charAt(0).toUpperCase() + video.category.slice(1)} Exercises
-                        </div>
-                        <h3 className="font-semibold text-lg mb-2">{video.title}</h3>
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                          {video.description}
-                        </p>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                          <span>By {video.uploadedBy}</span>
-                          <span>{video.uploadDate}</span>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => toast.info(`Playing ${video.title}`)}
-                          >
-                            <PlayCircle className="h-4 w-4 mr-2" /> Play
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toast.success(`Saved ${video.title} to favorites`)}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toast.success(`Downloaded ${video.title}`)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-muted/30 rounded-lg">
-                  <h3 className="text-lg font-medium mb-2">No videos found</h3>
-                  <p className="text-muted-foreground mb-4">Try adjusting your search or filters</p>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSelectedCategory("all");
-                      setSelectedLevel("all");
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="exercise-demos" className="mt-0 space-y-8">
-          {/* Recommended Exercise Videos */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Recommended Exercise Videos</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {recommendedVideos.map((video) => (
-                <Card key={video.id} className="p-4 space-y-4">
-                  <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                    <PlayCircle className="h-12 w-12 text-muted-foreground" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-primary">
-                      {video.level}
-                    </div>
-                    <h3 className="font-semibold">{video.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {video.description}
-                    </p>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => toast.info(`Watching demo for ${video.title}`)}
-                    >
-                      Watch Demo
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="feedback" className="mt-0 space-y-8">
-          {/* Therapist Feedback */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Therapist Feedback</h2>
-            <div className="space-y-4">
-              {feedbacks.map((feedback) => (
-                <Card key={feedback.id} className="p-4">
-                  <div className="flex items-start space-x-4">
-                    <Image
-                      src={feedback.avatar}
-                      alt={feedback.therapist}
-                      width={40}
-                      height={40}
-                      className="rounded-full"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{feedback.exercise}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {feedback.feedback}
-                      </p>
-                      <div className="flex justify-end mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toast.success(`Replied to ${feedback.therapist}`)}
-                        >
-                          Reply
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </TabsContent>
       </div>
     </div>
   );
