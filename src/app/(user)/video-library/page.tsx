@@ -4,7 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { PlayCircle, Download, Eye, Info, Upload, Plus, BookOpen, User, Library } from "lucide-react";
+import {
+  PlayCircle,
+  Download,
+  Eye,
+  Info,
+  Upload,
+  Plus,
+  BookOpen,
+  User,
+  Library,
+  X,
+  MessageSquare
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { videoAPI } from "@/lib/api";
@@ -12,6 +24,15 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import { LibraryVideoUploadForm } from "@/components/user/library-video-upload";
 import { VideoUploadForm } from "@/components/user/video-upload";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 interface VideoSubmission {
   id: string;
@@ -60,6 +81,14 @@ export default function VideoLib() {
   const [libraryVideos, setLibraryVideos] = useState<LibraryVideo[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
+
+  // Video player modal state
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [currentVideo, setCurrentVideo] = useState<any>(null);
+
+  // Feedback modal state
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [currentFeedback, setCurrentFeedback] = useState<Feedback | null>(null);
 
   // Fetch library videos
   useEffect(() => {
@@ -146,6 +175,30 @@ export default function VideoLib() {
   const toggleLibraryUploadForm = () => {
     setShowLibraryUploadForm(!showLibraryUploadForm);
     if (showUploadForm) setShowUploadForm(false);
+  };
+
+  // Handle playing video
+  const handlePlayVideo = (video: any) => {
+    setCurrentVideo(video);
+    setIsVideoModalOpen(true);
+  };
+
+  // Handle viewing feedback
+  const handleViewFeedback = (feedback: Feedback) => {
+    setCurrentFeedback(feedback);
+    setIsFeedbackModalOpen(true);
+  };
+
+  // Close video modal
+  const closeVideoModal = () => {
+    setIsVideoModalOpen(false);
+    setCurrentVideo(null);
+  };
+
+  // Close feedback modal
+  const closeFeedbackModal = () => {
+    setIsFeedbackModalOpen(false);
+    setCurrentFeedback(null);
   };
 
   const filteredLibraryVideos = libraryVideos.filter(video => {
@@ -295,7 +348,22 @@ export default function VideoLib() {
                             <Button
                               variant="default"
                               size="sm"
-                              onClick={() => toast.info(`Viewing ${submission.id === "1" ? "video" : submission.id === "2" ? "feedback" : "analysis"}`)}
+                              onClick={() => {
+                                if (submission.id === "1") {
+                                  handlePlayVideo(submission);
+                                } else if (submission.id === "2") {
+                                  // Find the corresponding feedback
+                                  const feedback = feedbacks.find(f => f.id === "1");
+                                  if (feedback) {
+                                    handleViewFeedback(feedback);
+                                  }
+                                } else {
+                                  handlePlayVideo({
+                                    ...submission,
+                                    aiScore: 78
+                                  });
+                                }
+                              }}
                             >
                               {submission.id === "1"
                                 ? "View Video"
@@ -346,14 +414,23 @@ export default function VideoLib() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => toast.info(`Viewing video for ${submission.title}`)}
+                                onClick={() => handlePlayVideo(submission)}
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => toast.info(`Viewing details for ${submission.title}`)}
+                                onClick={() => {
+                                  if (submission.id === "2") {
+                                    const feedback = feedbacks.find(f => f.id === "1");
+                                    if (feedback) {
+                                      handleViewFeedback(feedback);
+                                    }
+                                  } else {
+                                    toast.info(`Viewing details for ${submission.title}`);
+                                  }
+                                }}
                               >
                                 <Info className="h-4 w-4" />
                               </Button>
@@ -411,7 +488,7 @@ export default function VideoLib() {
                                   variant="default"
                                   size="sm"
                                   className="flex-1"
-                                  onClick={() => toast.info(`Playing ${video.title}`)}
+                                  onClick={() => handlePlayVideo(video)}
                                 >
                                   <PlayCircle className="h-4 w-4 mr-2" /> Play
                                 </Button>
@@ -475,7 +552,7 @@ export default function VideoLib() {
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => toast.info(`Watching demo for ${video.title}`)}
+                            onClick={() => handlePlayVideo(video)}
                           >
                             Watch Demo
                           </Button>
@@ -510,9 +587,9 @@ export default function VideoLib() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => toast.success(`Replied to ${feedback.therapist}`)}
+                                onClick={() => handleViewFeedback(feedback)}
                               >
-                                Reply
+                                View Details
                               </Button>
                             </div>
                           </div>
@@ -605,6 +682,163 @@ export default function VideoLib() {
 
 
       </div>
+
+      {/* Video Player Modal */}
+      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{currentVideo?.title || 'Video Player'}</DialogTitle>
+            <DialogDescription>
+              {currentVideo?.description || ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4">
+            {currentVideo && (
+              <div className="space-y-4">
+                <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
+                  {/* In a real implementation, this would be a video player component */}
+                  {/* For now, we'll use a placeholder with play controls */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-full h-full bg-gradient-to-t from-black/60 to-transparent absolute"></div>
+                    <Image
+                      src={currentVideo.thumbnailUrl || "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&h=300&fit=crop"}
+                      alt={currentVideo.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="flex items-center justify-between">
+                        <Button variant="default" size="sm" className="bg-white/20 backdrop-blur-sm hover:bg-white/30">
+                          <PlayCircle className="h-5 w-5 mr-2" /> Play
+                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Button variant="outline" size="sm" className="bg-white/20 backdrop-blur-sm hover:bg-white/30 border-0 text-white">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="mt-2 w-full bg-white/20 rounded-full h-1">
+                        <div className="bg-primary h-1 rounded-full w-1/3"></div>
+                      </div>
+                      <div className="flex justify-between mt-1 text-xs text-white">
+                        <span>0:42</span>
+                        <span>2:15</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">{currentVideo.title}</h3>
+
+                  {currentVideo.aiScore && (
+                    <div className="bg-muted p-4 rounded-lg">
+                      <h4 className="font-medium mb-2">AI Analysis</h4>
+                      <div className="space-y-2">
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>Overall Score</span>
+                            <span className="font-medium">{currentVideo.aiScore}%</span>
+                          </div>
+                          <div className="h-2 bg-gray-200 rounded-full">
+                            <div
+                              className="h-2 bg-primary rounded-full"
+                              style={{ width: `${currentVideo.aiScore}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        <p className="text-sm mt-2">
+                          AI analysis shows good form overall. Focus on maintaining proper alignment during the exercise.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-muted p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Exercise Details</h4>
+                    <p className="text-sm">{currentVideo.description}</p>
+
+                    {currentVideo.notes && (
+                      <div className="mt-2">
+                        <h5 className="text-sm font-medium">Notes:</h5>
+                        <p className="text-sm text-muted-foreground">{currentVideo.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={closeVideoModal}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Feedback Modal */}
+      <Dialog open={isFeedbackModalOpen} onOpenChange={setIsFeedbackModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{currentFeedback?.exercise || 'Therapist Feedback'}</DialogTitle>
+          </DialogHeader>
+
+          {currentFeedback && (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-start space-x-4">
+                <Image
+                  src={currentFeedback.avatar}
+                  alt={currentFeedback.therapist}
+                  width={48}
+                  height={48}
+                  className="rounded-full"
+                />
+                <div>
+                  <h3 className="font-semibold">{currentFeedback.therapist}</h3>
+                  <p className="text-sm text-muted-foreground">Physiotherapist</p>
+                </div>
+              </div>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-sm">{currentFeedback.feedback}</p>
+              </div>
+
+              <div className="bg-muted p-4 rounded-lg">
+                <h4 className="text-sm font-medium mb-2">Additional Notes</h4>
+                <p className="text-sm text-muted-foreground">
+                  Continue with the current exercise plan. I've noticed significant improvement in your form since your last submission.
+                  Focus on maintaining proper breathing technique during the exercise.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Your Reply</h4>
+                <textarea
+                  className="w-full p-2 border rounded-md h-24 text-sm"
+                  placeholder="Type your response here..."
+                ></textarea>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4 space-x-2">
+            <Button variant="outline" onClick={closeFeedbackModal}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              toast.success(`Reply sent to ${currentFeedback?.therapist}`);
+              closeFeedbackModal();
+            }}>
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Send Reply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
