@@ -67,6 +67,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       localStorage.setItem('token', mockToken);
       localStorage.setItem('user', JSON.stringify(mockUserData));
+
+      // Set cookie for middleware
+      document.cookie = `token=${mockToken}; path=/; max-age=86400; SameSite=Lax`;
+
       setUser(mockUserData);
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
@@ -104,9 +108,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Save token to localStorage
+      // Save token to localStorage and cookie
       localStorage.setItem('token', mockToken);
       localStorage.setItem('user', JSON.stringify(mockUserData));
+
+      // Set cookie for middleware
+      document.cookie = `token=${mockToken}; path=/; max-age=86400; SameSite=Lax`;
 
       // Set user data
       setUser(mockUserData);
@@ -149,9 +156,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Save token to localStorage
+      // Save token to localStorage and cookie
       localStorage.setItem('token', mockToken);
       localStorage.setItem('user', JSON.stringify(mockUserData));
+
+      // Set cookie for middleware
+      document.cookie = `token=${mockToken}; path=/; max-age=86400; SameSite=Lax`;
 
       // Set user data
       setUser(mockUserData);
@@ -180,6 +190,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Clear localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+
+    // Clear cookie
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
 
     // Clear user state
     setUser(null);

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { JSX, SVGProps } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +30,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 export default function UserNavbar() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
 
   // Navigation items
   const navItems = [
@@ -39,6 +41,12 @@ export default function UserNavbar() {
     { id: "messages", title: "Messages", href: "/messages", icon: MessageSquare },
     { id: "analytics", title: "Analytics", href: "/progress-analytics", icon: BarChart2 },
   ];
+
+  // Handle navigation with client-side routing
+  const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    router.push(href);
+  };
 
   const getInitials = (name: string) => {
     return name
@@ -69,6 +77,7 @@ export default function UserNavbar() {
                   key={item.id}
                   href={item.href}
                   className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-white hover:bg-white/10 transition-colors"
+                  onClick={(e) => handleNavigation(e, item.href)}
                 >
                   <item.icon className="h-4 w-4 mr-2 text-[#BB78FA]" />
                   {item.title}
@@ -96,7 +105,11 @@ export default function UserNavbar() {
                         key={item.id}
                         href={item.href}
                         className="flex items-center px-3 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors"
-                        onClick={() => setIsOpen(false)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setIsOpen(false);
+                          router.push(item.href);
+                        }}
                       >
                         <item.icon className="h-5 w-5 mr-3 text-[#BB78FA]" />
                         {item.title}

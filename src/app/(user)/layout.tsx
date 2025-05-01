@@ -16,7 +16,11 @@ export default function UserLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    // Check for token in both localStorage and cookies
+    const token = localStorage.getItem('token');
+    const hasCookie = document.cookie.split(';').some(item => item.trim().startsWith('token='));
+
+    if (!loading && !isAuthenticated && !token && !hasCookie) {
       router.push('/login');
     }
   }, [loading, isAuthenticated, router]);
@@ -30,9 +34,8 @@ export default function UserLayout({
     );
   }
 
-  if (!isAuthenticated) {
-    return null; // Will redirect in the useEffect
-  }
+  // Continue rendering even if not authenticated yet, middleware will handle redirect
+  // This prevents flickering during authentication check
 
   return (
     <>
