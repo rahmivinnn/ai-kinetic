@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap, Play } from 'lucide-react';
 
 // Define the PoseAnalysis component props
 interface PoseAnalysisProps {
