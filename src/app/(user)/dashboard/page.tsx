@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoUploadForm } from "@/components/user/video-upload";
 import { ExercisePlan } from "@/components/user/exercise-plan";
 import { VideoAnalysis } from "@/components/user/video-analysis";
-import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw } from "lucide-react";
+import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import Image from "next/image";
@@ -455,8 +455,62 @@ const UserHome = () => {
           </CardContent>
         </Card>
 
-        {/* Notifications Card */}
+        {/* MediaPipe Pose Analyzer Card */}
         <Card className="overflow-hidden border-2 border-primary/10 hover:shadow-lg transition-all duration-300 hover:border-primary/20">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-500"></div>
+          <CardContent className="p-6 pt-8">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="bg-cyan-100 p-2 rounded-full">
+                <Camera className="h-5 w-5 text-cyan-700" />
+              </div>
+              <span className="text-sm font-medium text-cyan-700">
+                AI POSE ANALYSIS
+              </span>
+            </div>
+            <h3 className="text-lg font-semibold mb-3">MediaPipe Pose Analyzer</h3>
+
+            <div className="space-y-3 mb-4">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm">Analyze your exercise form in real-time using AI-powered pose detection technology.</p>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="bg-cyan-50 p-2 rounded-lg text-center">
+                    <p className="text-xs text-cyan-700 font-medium">LIVE ANALYSIS</p>
+                    <p className="text-2xl font-bold text-cyan-700 mt-1">
+                      <Camera className="h-6 w-6 mx-auto" />
+                    </p>
+                  </div>
+                  <div className="bg-cyan-50 p-2 rounded-lg text-center">
+                    <p className="text-xs text-cyan-700 font-medium">ACCURACY</p>
+                    <p className="text-2xl font-bold text-cyan-700 mt-1">95%</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-muted/50 rounded-lg flex items-start gap-3">
+                <div className="bg-cyan-100 p-2 rounded-full flex-shrink-0">
+                  <Check className="h-4 w-4 text-cyan-700" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Real-time feedback</p>
+                  <p className="text-xs text-muted-foreground mt-1">Get instant feedback on your exercise form</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button className="w-full bg-cyan-600 hover:bg-cyan-700" asChild>
+                <Link href="/pose-analyzer">
+                  <Camera className="h-4 w-4 mr-2" />
+                  Open Analyzer
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notifications Card */}
+        <Card className="overflow-hidden border-2 border-primary/10 hover:shadow-lg transition-all duration-300 hover:border-primary/20 md:hidden">
           <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500"></div>
           <CardContent className="p-6 pt-8">
             <div className="flex items-center gap-2 mb-2">
