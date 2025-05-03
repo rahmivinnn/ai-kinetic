@@ -39,7 +39,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
       try {
         // Load TensorFlow.js Core
         const tfScript = document.createElement('script');
-        tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.2.0/dist/tf-core.min.js';
+        tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js';
         tfScript.async = true;
         document.body.appendChild(tfScript);
 
@@ -49,7 +49,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
 
         // Load TensorFlow.js Backend
         const tfBackendScript = document.createElement('script');
-        tfBackendScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.2.0/dist/tf-backend-webgl.min.js';
+        tfBackendScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.20.0/dist/tf-backend-webgl.min.js';
         tfBackendScript.async = true;
         document.body.appendChild(tfBackendScript);
 
@@ -59,13 +59,20 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
 
         // Load MediaPipe Pose Detection
         const poseDetectionScript = document.createElement('script');
-        poseDetectionScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.min.js';
+        poseDetectionScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.0.0/dist/pose-detection.min.js';
         poseDetectionScript.async = true;
         document.body.appendChild(poseDetectionScript);
 
         await new Promise((resolve) => {
           poseDetectionScript.onload = resolve;
         });
+
+        // Initialize TensorFlow backend
+        await window.tf?.setBackend('webgl');
+        console.log('TensorFlow backend initialized:', window.tf?.getBackend());
+
+        // Wait a bit to ensure everything is properly initialized
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         setIsMediaPipeLoaded(true);
         toast.success('MediaPipe loaded successfully');
@@ -127,8 +134,19 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
 
   // Start pose analysis
   const startAnalysis = async () => {
-    if (!isMediaPipeLoaded || !videoRef.current || !canvasRef.current) {
-      toast.error('MediaPipe not loaded or video not ready');
+    if (!videoRef.current || !canvasRef.current) {
+      toast.error('Video or canvas not ready');
+      return;
+    }
+
+    if (!isMediaPipeLoaded) {
+      toast.error('MediaPipe is still loading. Please wait a moment and try again.');
+      return;
+    }
+
+    if (!window.poseDetection) {
+      toast.error('MediaPipe pose detection not available. Please refresh the page.');
+      setIsMediaPipeSupported(false);
       return;
     }
 
@@ -137,11 +155,30 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
     setFeedback([]);
 
     try {
-      // Initialize the detector
-      const detector = await window.poseDetection.createDetector(
-        window.poseDetection.SupportedModels.MoveNet,
-        { modelType: 'thunder' }
-      );
+      console.log('Starting pose analysis with MediaPipe...');
+      console.log('Available models:', window.poseDetection.SupportedModels);
+
+      // Initialize the detector with proper error handling
+      let detector;
+      try {
+        detector = await window.poseDetection.createDetector(
+          window.poseDetection.SupportedModels.MoveNet,
+          { modelType: 'SinglePose.Thunder' }
+        );
+      } catch (modelError) {
+        console.error('Error creating detector with Thunder model:', modelError);
+
+        // Try with Lightning model as fallback
+        toast.info('Switching to lighter model for better compatibility');
+        detector = await window.poseDetection.createDetector(
+          window.poseDetection.SupportedModels.MoveNet,
+          { modelType: 'SinglePose.Lightning' }
+        );
+      }
+
+      if (!detector) {
+        throw new Error('Failed to initialize pose detector');
+      }
 
       // Analysis progress simulation
       const progressInterval = setInterval(() => {
@@ -1017,5 +1054,6 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
 declare global {
   interface Window {
     poseDetection: any;
+    tf: any;
   }
 }
