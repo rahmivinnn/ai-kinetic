@@ -112,15 +112,35 @@ export default function PoseAnalyzerPage() {
                 <CardContent className="pt-6">
                   {selectedSampleVideo && mode === 'sample' ? (
                     <div className="space-y-4">
-                      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-3 rounded-lg flex items-center gap-3">
-                        <div className="bg-blue-100 p-2 rounded-full">
-                          <Video className="h-5 w-5 text-blue-700" />
+                      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-3 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-blue-100 p-2 rounded-full">
+                            <Video className="h-5 w-5 text-blue-700" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-blue-900">{selectedSampleVideo.title}</h3>
+                            <p className="text-xs text-blue-700">{selectedSampleVideo.category} • {selectedSampleVideo.difficulty} • {selectedSampleVideo.duration}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-medium text-blue-900">{selectedSampleVideo.title}</h3>
-                          <p className="text-xs text-blue-700">{selectedSampleVideo.category} • {selectedSampleVideo.difficulty}</p>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="bg-white/50 p-2 rounded text-xs">
+                            <span className="font-medium text-blue-900">Description:</span>
+                            <p className="text-blue-700 mt-1">{selectedSampleVideo.description}</p>
+                          </div>
+                          <div className="bg-white/50 p-2 rounded text-xs">
+                            <span className="font-medium text-blue-900">Targets:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {selectedSampleVideo.bodyParts.map((part, index) => (
+                                <span key={index} className="bg-blue-100 px-2 py-0.5 rounded text-blue-800">
+                                  {part}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
+
                       <PoseAnalysis
                         mode="upload"
                         videoUrl={selectedSampleVideo.videoUrl}

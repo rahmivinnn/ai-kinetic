@@ -154,6 +154,16 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
         });
       }, 200);
 
+      // For uploaded or sample videos, make sure they're playing
+      if (mode === 'upload' && videoRef.current.paused) {
+        try {
+          await videoRef.current.play();
+        } catch (e) {
+          console.log('Auto-play prevented. User interaction required.');
+          // We'll continue anyway as the user might play manually
+        }
+      }
+
       // Frame processing function
       const processFrame = async () => {
         if (!videoRef.current || !canvasRef.current || !detector) return;
@@ -165,8 +175,8 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
         if (!ctx) return;
 
         // Set canvas dimensions to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
 
         // Detect poses
         const poses = await detector.estimatePoses(video);
@@ -188,10 +198,19 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
           analyzePose(poses[0]);
         }
 
-        // Continue processing frames if still analyzing
-        if (isAnalyzing && (mode === 'live' && cameraActive)) {
+        // Determine if we should continue processing frames
+        const shouldContinue = isAnalyzing && (
+          (mode === 'live' && cameraActive) ||
+          (mode === 'upload' && !videoRef.current.paused && !videoRef.current.ended)
+        );
+
+        if (shouldContinue) {
+          // Continue processing frames
           requestAnimationFrame(processFrame);
         } else {
+          // Check if this is the end of a video
+          const isVideoEnded = mode === 'upload' && (videoRef.current.ended || videoRef.current.currentTime >= videoRef.current.duration - 0.5);
+
           // Complete the analysis
           clearInterval(progressInterval);
           setProgress(100);
@@ -204,14 +223,56 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
           };
 
           setResults(analysisResults);
+          setIsAnalyzing(false);
 
           if (onAnalysisComplete) {
             onAnalysisComplete(analysisResults);
           }
 
-          toast.success('Pose analysis completed');
+          if (isVideoEnded) {
+            toast.success('Video analysis completed');
+          } else if (!isAnalyzing) {
+            toast.success('Pose analysis completed');
+          }
         }
       };
+
+      // For video analysis, add event listeners
+      if (mode === 'upload' && videoRef.current) {
+        // Add event listener for video end
+        const handleVideoEnd = () => {
+          if (isAnalyzing) {
+            setIsAnalyzing(false);
+            setProgress(100);
+
+            // Generate final results if not already done
+            if (!results) {
+              const analysisResults = {
+                score: poseScore || Math.floor(Math.random() * 30) + 70,
+                feedback: feedback.length > 0 ? feedback : generateDefaultFeedback(),
+                timestamp: new Date().toISOString()
+              };
+
+              setResults(analysisResults);
+
+              if (onAnalysisComplete) {
+                onAnalysisComplete(analysisResults);
+              }
+
+              toast.success('Video analysis completed');
+            }
+          }
+        };
+
+        videoRef.current.addEventListener('ended', handleVideoEnd);
+
+        // Cleanup function
+        return () => {
+          if (videoRef.current) {
+            videoRef.current.removeEventListener('ended', handleVideoEnd);
+          }
+        };
+      }
 
       // Start processing frames
       processFrame();
@@ -684,13 +745,40 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
             autoPlay={mode === 'live'}
             loop={mode === 'upload'}
             src={mode === 'upload' ? videoUrl : undefined}
+            controls={mode === 'upload'}
+            onPlay={() => {
+              if (mode === 'upload' && !isAnalyzing) {
+                startAnalysis();
+              }
+            }}
           />
 
           {/* Canvas overlay for drawing pose detection */}
           <canvas
             ref={canvasRef}
-            className="absolute top-0 left-0 w-full h-full"
+            className="absolute top-0 left-0 w-full h-full pointer-events-none"
           />
+
+          {/* Video controls overlay for sample videos */}
+          {mode === 'upload' && videoUrl && !isAnalyzing && !results && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg text-center">
+                <p className="text-white mb-3">Click play to start video analysis</p>
+                <Button
+                  onClick={() => {
+                    if (videoRef.current) {
+                      videoRef.current.play();
+                      startAnalysis();
+                    }
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Play className="h-5 w-5 mr-2" />
+                  Play and Analyze
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Loading indicator */}
           {!isMediaPipeLoaded && (
@@ -888,8 +976,34 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
                 })}
               </div>
 
-              <div className="pt-3 border-t border-blue-100 text-xs text-blue-500 italic">
-                Analysis completed: {new Date(results.timestamp).toLocaleString()}
+              <div className="pt-3 border-t border-blue-100 flex justify-between items-center">
+                <span className="text-xs text-blue-500 italic">
+                  Analysis completed: {new Date(results.timestamp).toLocaleString()}
+                </span>
+
+                {mode === 'upload' && videoUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setResults(null);
+                      setFeedback([]);
+                      setPoseScore(null);
+                      setProgress(0);
+
+                      // Reset video to beginning
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = 0;
+                        videoRef.current.play();
+                        startAnalysis();
+                      }
+                    }}
+                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Analyze Again
+                  </Button>
+                )}
               </div>
             </div>
           </div>
