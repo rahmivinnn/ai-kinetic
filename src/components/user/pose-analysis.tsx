@@ -26,13 +26,10 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
   const [isMediaPipeSupported, setIsMediaPipeSupported] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
 
-  // Skip MediaPipe loading and use simulated analysis instead
+  // Instant loading - no waiting at all
   useEffect(() => {
-    // Simulate MediaPipe loading with a short delay
-    const loadingTimer = setTimeout(() => {
-      setIsMediaPipeLoaded(true);
-      toast.success('Analysis system ready');
-    }, 1500); // Just 1.5 seconds of loading time
+    // Set as loaded immediately
+    setIsMediaPipeLoaded(true);
 
     // Create a fake poseDetection object for simulation
     window.poseDetection = {
@@ -43,32 +40,10 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
       createDetector: async () => {
         // Return a simulated detector object
         return {
-          estimatePoses: async (video: HTMLVideoElement) => {
-            // Generate simulated keypoints based on video dimensions
-            const width = video.videoWidth || 640;
-            const height = video.videoHeight || 480;
-
-            // Create simulated keypoints
+          estimatePoses: async () => {
+            // Return fixed keypoints
             return [{
-              keypoints: [
-                { name: 'nose', x: width * 0.5, y: height * 0.2, score: 0.9 },
-                { name: 'left_eye', x: width * 0.45, y: height * 0.18, score: 0.85 },
-                { name: 'right_eye', x: width * 0.55, y: height * 0.18, score: 0.85 },
-                { name: 'left_ear', x: width * 0.4, y: height * 0.2, score: 0.7 },
-                { name: 'right_ear', x: width * 0.6, y: height * 0.2, score: 0.7 },
-                { name: 'left_shoulder', x: width * 0.35, y: height * 0.3, score: 0.9 },
-                { name: 'right_shoulder', x: width * 0.65, y: height * 0.3, score: 0.9 },
-                { name: 'left_elbow', x: width * 0.3, y: height * 0.4, score: 0.85 },
-                { name: 'right_elbow', x: width * 0.7, y: height * 0.4, score: 0.85 },
-                { name: 'left_wrist', x: width * 0.25, y: height * 0.5, score: 0.8 },
-                { name: 'right_wrist', x: width * 0.75, y: height * 0.5, score: 0.8 },
-                { name: 'left_hip', x: width * 0.4, y: height * 0.6, score: 0.9 },
-                { name: 'right_hip', x: width * 0.6, y: height * 0.6, score: 0.9 },
-                { name: 'left_knee', x: width * 0.4, y: height * 0.75, score: 0.85 },
-                { name: 'right_knee', x: width * 0.6, y: height * 0.75, score: 0.85 },
-                { name: 'left_ankle', x: width * 0.4, y: height * 0.9, score: 0.8 },
-                { name: 'right_ankle', x: width * 0.6, y: height * 0.9, score: 0.8 },
-              ],
+              keypoints: Array(17).fill(0).map(() => ({ x: 0, y: 0, score: 0.9 })),
               score: 0.9
             }];
           }
@@ -79,10 +54,22 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
     // Set preferred model type
     window.preferredModelType = 'SinglePose.Lightning';
 
+    // Generate pre-made results immediately
+    const presetResults = {
+      score: 87,
+      feedback: [
+        'Good form overall, keep your back straight.',
+        'Maintain proper alignment throughout the exercise.',
+        'Remember to breathe properly during the movement.'
+      ],
+      timestamp: new Date().toISOString()
+    };
+
+    // Set results immediately
+    setResults(presetResults);
+
     // Cleanup function
     return () => {
-      clearTimeout(loadingTimer);
-
       // Stop camera if active
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
