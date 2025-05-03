@@ -34,12 +34,18 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
       return;
     }
 
+    // Set a timeout to show a message if loading takes too long
+    const loadingTimeout = setTimeout(() => {
+      toast.info('MediaPipe is taking longer than expected to load. This is normal for the first visit.');
+    }, 5000);
+
     // Load TensorFlow.js and MediaPipe scripts
     const loadScripts = async () => {
       try {
-        // Load TensorFlow.js Core
+        // Use a CDN that's optimized for faster loading
+        // Load TensorFlow.js (smaller bundle)
         const tfScript = document.createElement('script');
-        tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js';
+        tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@3.11.0/dist/tf-core.min.js';
         tfScript.async = true;
         document.body.appendChild(tfScript);
 
@@ -47,9 +53,9 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
           tfScript.onload = resolve;
         });
 
-        // Load TensorFlow.js Backend
+        // Load TensorFlow.js Backend (WebGL for hardware acceleration)
         const tfBackendScript = document.createElement('script');
-        tfBackendScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.20.0/dist/tf-backend-webgl.min.js';
+        tfBackendScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.11.0/dist/tf-backend-webgl.min.js';
         tfBackendScript.async = true;
         document.body.appendChild(tfBackendScript);
 
@@ -57,9 +63,9 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
           tfBackendScript.onload = resolve;
         });
 
-        // Load MediaPipe Pose Detection
+        // Load MediaPipe Pose Detection (using a specific version known to work well)
         const poseDetectionScript = document.createElement('script');
-        poseDetectionScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.0.0/dist/pose-detection.min.js';
+        poseDetectionScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@0.0.6/dist/pose-detection.min.js';
         poseDetectionScript.async = true;
         document.body.appendChild(poseDetectionScript);
 
@@ -67,18 +73,21 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
           poseDetectionScript.onload = resolve;
         });
 
-        // Initialize TensorFlow backend
-        await window.tf?.setBackend('webgl');
-        console.log('TensorFlow backend initialized:', window.tf?.getBackend());
+        // Clear the timeout since loading completed
+        clearTimeout(loadingTimeout);
 
-        // Wait a bit to ensure everything is properly initialized
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Use a simpler model by default for faster loading
+        window.preferredModelType = 'SinglePose.Lightning';
 
         setIsMediaPipeLoaded(true);
         toast.success('MediaPipe loaded successfully');
       } catch (error) {
         console.error('Error loading MediaPipe:', error);
         setIsMediaPipeSupported(false);
+
+        // Clear the timeout
+        clearTimeout(loadingTimeout);
+
         toast.error('Failed to load MediaPipe. Your browser may not support it.');
       }
     };
@@ -87,6 +96,9 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
 
     // Cleanup function
     return () => {
+      // Clear the timeout if component unmounts
+      clearTimeout(loadingTimeout);
+
       // Stop camera if active
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
@@ -161,19 +173,27 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
       // Initialize the detector with proper error handling
       let detector;
       try {
+        // Use the preferred model type (Lightning is faster, Thunder is more accurate)
+        const modelType = window.preferredModelType || 'SinglePose.Lightning';
+        console.log(`Using model: ${modelType}`);
+
         detector = await window.poseDetection.createDetector(
           window.poseDetection.SupportedModels.MoveNet,
-          { modelType: 'SinglePose.Thunder' }
+          { modelType }
         );
       } catch (modelError) {
-        console.error('Error creating detector with Thunder model:', modelError);
+        console.error('Error creating detector:', modelError);
 
-        // Try with Lightning model as fallback
-        toast.info('Switching to lighter model for better compatibility');
-        detector = await window.poseDetection.createDetector(
-          window.poseDetection.SupportedModels.MoveNet,
-          { modelType: 'SinglePose.Lightning' }
-        );
+        // Try with most basic model as fallback
+        toast.info('Switching to basic model for better compatibility');
+        try {
+          detector = await window.poseDetection.createDetector(
+            window.poseDetection.SupportedModels.PoseNet
+          );
+        } catch (fallbackError) {
+          console.error('Error creating fallback detector:', fallbackError);
+          throw new Error('Failed to initialize any pose detection model');
+        }
       }
 
       if (!detector) {
@@ -817,12 +837,31 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
             </div>
           )}
 
-          {/* Loading indicator */}
+          {/* Loading indicator with more details */}
           {!isMediaPipeLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
-                <p className="text-white mt-4">Loading MediaPipe...</p>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+              <div className="text-center bg-black/50 p-6 rounded-lg backdrop-blur-sm max-w-md">
+                <div className="flex justify-center mb-4">
+                  <div className="relative">
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                    <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center">
+                      <svg width="24" height="24" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M96 9L15 52V140L96 183L177 140V52L96 9Z" fill="#4285F4" fillOpacity="0.5"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-white text-lg font-semibold mb-2">Loading MediaPipe</h3>
+                <p className="text-blue-200 mb-4 text-sm">
+                  This may take 10-15 seconds on the first load as we're downloading the AI models.
+                </p>
+                <div className="bg-black/30 rounded-full h-2 mb-2">
+                  <div className="bg-blue-500 h-2 rounded-full animate-pulse"></div>
+                </div>
+                <p className="text-xs text-blue-300">
+                  MediaPipe uses advanced AI to analyze human poses in real-time.
+                  <br />Subsequent loads will be much faster.
+                </p>
               </div>
             </div>
           )}
@@ -1055,5 +1094,6 @@ declare global {
   interface Window {
     poseDetection: any;
     tf: any;
+    preferredModelType: string;
   }
 }
