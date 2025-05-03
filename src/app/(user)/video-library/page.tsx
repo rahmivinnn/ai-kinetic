@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import { LibraryVideoUploadForm } from "@/components/user/library-video-upload";
 import { VideoUploadForm } from "@/components/user/video-upload";
+import { PoseAnalysis } from "@/components/user/pose-analysis";
 import {
   Dialog,
   DialogContent,
@@ -89,6 +90,11 @@ export default function VideoLib() {
   // Feedback modal state
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [currentFeedback, setCurrentFeedback] = useState<Feedback | null>(null);
+
+  // Pose analysis state
+  const [isPoseAnalysisModalOpen, setIsPoseAnalysisModalOpen] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<'live' | 'upload'>('upload');
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
 
   // Fetch library videos
   useEffect(() => {
@@ -199,6 +205,33 @@ export default function VideoLib() {
   const closeFeedbackModal = () => {
     setIsFeedbackModalOpen(false);
     setCurrentFeedback(null);
+  };
+
+  // Open pose analysis modal with live mode
+  const openLiveAnalysis = () => {
+    setAnalysisMode('live');
+    setAnalysisResults(null);
+    setIsPoseAnalysisModalOpen(true);
+  };
+
+  // Open pose analysis modal with upload mode
+  const openVideoAnalysis = (video: any) => {
+    setAnalysisMode('upload');
+    setCurrentVideo(video);
+    setAnalysisResults(null);
+    setIsPoseAnalysisModalOpen(true);
+  };
+
+  // Close pose analysis modal
+  const closePoseAnalysisModal = () => {
+    setIsPoseAnalysisModalOpen(false);
+    setAnalysisResults(null);
+  };
+
+  // Handle analysis completion
+  const handleAnalysisComplete = (results: any) => {
+    setAnalysisResults(results);
+    toast.success('Analysis completed with score: ' + results.score + '%');
   };
 
   const filteredLibraryVideos = libraryVideos.filter(video => {
@@ -646,13 +679,24 @@ export default function VideoLib() {
 
           <div className="flex gap-2">
             {activeTab === "my-submissions" && (
-              <Button
-                variant={showUploadForm ? "secondary" : "default"}
-                onClick={toggleUploadForm}
-              >
-                {showUploadForm ? "Cancel" : "Upload Exercise Video"}
-                {!showUploadForm && <Upload className="ml-2 h-4 w-4" />}
-              </Button>
+              <>
+                <Button
+                  variant={showUploadForm ? "secondary" : "default"}
+                  onClick={toggleUploadForm}
+                >
+                  {showUploadForm ? "Cancel" : "Upload Exercise Video"}
+                  {!showUploadForm && <Upload className="ml-2 h-4 w-4" />}
+                </Button>
+
+                <Button
+                  variant="default"
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={openLiveAnalysis}
+                >
+                  Live Pose Analysis
+                  <Camera className="ml-2 h-4 w-4" />
+                </Button>
+              </>
             )}
 
             {activeTab === "library" && user?.role === "physiotherapist" && (
@@ -772,7 +816,17 @@ export default function VideoLib() {
             )}
           </div>
 
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-4 flex justify-between flex-wrap gap-2">
+            <Button
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => {
+                closeVideoModal();
+                openVideoAnalysis(currentVideo);
+              }}
+            >
+              Analyze Pose
+            </Button>
             <Button variant="outline" onClick={closeVideoModal}>
               Close
             </Button>
@@ -835,6 +889,36 @@ export default function VideoLib() {
             }}>
               <MessageSquare className="h-4 w-4 mr-2" />
               Send Reply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pose Analysis Modal */}
+      <Dialog open={isPoseAnalysisModalOpen} onOpenChange={setIsPoseAnalysisModalOpen}>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {analysisMode === 'live' ? 'Live Pose Analysis' : `Analyzing: ${currentVideo?.title || 'Video'}`}
+            </DialogTitle>
+            <DialogDescription>
+              {analysisMode === 'live'
+                ? 'Perform your exercise in front of the camera for real-time analysis'
+                : 'AI will analyze your exercise form and provide feedback'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4">
+            <PoseAnalysis
+              videoUrl={currentVideo?.url}
+              onAnalysisComplete={handleAnalysisComplete}
+              mode={analysisMode}
+            />
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={closePoseAnalysisModal}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
