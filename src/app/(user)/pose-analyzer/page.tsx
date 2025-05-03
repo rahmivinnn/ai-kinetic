@@ -2,17 +2,28 @@
 
 import { useState } from "react";
 import { PoseAnalysis } from "@/components/user/pose-analysis";
+import { MediaPipeShowcase } from "@/components/user/mediapipe-showcase";
+import { SampleVideos, type SampleVideo } from "@/components/user/sample-videos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Camera, Upload } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ArrowLeft, Camera, Upload, Play, Video, Info, FileVideo, Zap } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function PoseAnalyzerPage() {
-  const [mode, setMode] = useState<'live' | 'upload'>('live');
+  const [mode, setMode] = useState<'live' | 'upload' | 'sample'>('live');
   const [results, setResults] = useState<any>(null);
+  const [selectedSampleVideo, setSelectedSampleVideo] = useState<SampleVideo | null>(null);
+  const [activeTab, setActiveTab] = useState('analyzer');
 
   const handleAnalysisComplete = (analysisResults: any) => {
     setResults(analysisResults);
+  };
+
+  const handleSelectSampleVideo = (video: SampleVideo) => {
+    setSelectedSampleVideo(video);
+    setMode('sample');
   };
 
   return (
@@ -24,50 +35,107 @@ export default function PoseAnalyzerPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">MediaPipe Pose Analyzer</h1>
-          <p className="text-muted-foreground">Analyze your exercise form using AI-powered pose detection</p>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500">
+            MediaPipe Pose Analyzer
+          </h1>
+          <p className="text-muted-foreground">
+            Analyze your exercise form using Google's advanced AI-powered pose detection
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-0">
-              <div className="flex justify-between items-center">
-                <CardTitle>Pose Analysis</CardTitle>
-                <div className="flex space-x-2">
-                  <Button
-                    variant={mode === 'live' ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setMode('live')}
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Live Camera
-                  </Button>
-                  <Button
-                    variant={mode === 'upload' ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setMode('upload')}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Video
-                  </Button>
-                </div>
-              </div>
-              <CardDescription>
-                {mode === 'live'
-                  ? 'Perform your exercise in front of the camera for real-time analysis'
-                  : 'Upload a video of your exercise for analysis'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <PoseAnalysis
-                mode={mode}
-                onAnalysisComplete={handleAnalysisComplete}
-              />
-            </CardContent>
-          </Card>
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
+          <TabsTrigger value="analyzer" className="flex items-center gap-2">
+            <Camera className="h-4 w-4" />
+            <span className="hidden sm:inline">Pose Analyzer</span>
+            <span className="sm:hidden">Analyzer</span>
+          </TabsTrigger>
+          <TabsTrigger value="samples" className="flex items-center gap-2">
+            <FileVideo className="h-4 w-4" />
+            <span className="hidden sm:inline">Sample Videos</span>
+            <span className="sm:hidden">Samples</span>
+          </TabsTrigger>
+          <TabsTrigger value="about" className="flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            <span className="hidden sm:inline">About MediaPipe</span>
+            <span className="sm:hidden">About</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analyzer" className="mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-0">
+                  <div className="flex justify-between items-center flex-wrap gap-2">
+                    <CardTitle>Pose Analysis</CardTitle>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant={mode === 'live' ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setMode('live')}
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Live Camera
+                      </Button>
+                      <Button
+                        variant={mode === 'upload' ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setMode('upload')}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Video
+                      </Button>
+                      <Button
+                        variant={mode === 'sample' ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setActiveTab('samples');
+                        }}
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Sample Videos
+                      </Button>
+                    </div>
+                  </div>
+                  <CardDescription>
+                    {mode === 'live'
+                      ? 'Perform your exercise in front of the camera for real-time analysis'
+                      : mode === 'upload'
+                      ? 'Upload a video of your exercise for analysis'
+                      : selectedSampleVideo
+                        ? `Analyzing: ${selectedSampleVideo.title}`
+                        : 'Select a sample video for analysis'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  {selectedSampleVideo && mode === 'sample' ? (
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-3 rounded-lg flex items-center gap-3">
+                        <div className="bg-blue-100 p-2 rounded-full">
+                          <Video className="h-5 w-5 text-blue-700" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-blue-900">{selectedSampleVideo.title}</h3>
+                          <p className="text-xs text-blue-700">{selectedSampleVideo.category} • {selectedSampleVideo.difficulty}</p>
+                        </div>
+                      </div>
+                      <PoseAnalysis
+                        mode="upload"
+                        videoUrl={selectedSampleVideo.videoUrl}
+                        onAnalysisComplete={handleAnalysisComplete}
+                      />
+                    </div>
+                  ) : (
+                    <PoseAnalysis
+                      mode={mode}
+                      onAnalysisComplete={handleAnalysisComplete}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
         <div className="lg:col-span-1">
           <Card className="overflow-hidden">
@@ -273,6 +341,161 @@ export default function PoseAnalyzerPage() {
           )}
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="samples" className="mt-0">
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg">
+              <h2 className="text-xl font-semibold text-blue-900 mb-2">Sample Exercise Videos</h2>
+              <p className="text-sm text-blue-700">
+                Select a video to analyze with MediaPipe pose detection. These videos demonstrate proper form for common exercises.
+              </p>
+            </div>
+
+            <SampleVideos onSelectVideo={(video) => {
+              handleSelectSampleVideo(video);
+              setActiveTab('analyzer');
+            }} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="about" className="mt-0">
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="bg-white p-3 rounded-full shadow-sm">
+                  <svg width="40" height="40" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M96 9L15 52V140L96 183L177 140V52L96 9Z" fill="#4285F4"/>
+                    <path d="M96 183L15 140V52L96 9V183Z" fill="#0D47A1"/>
+                    <path d="M96 67L40 97V157L96 127V67Z" fill="#EEEEEE"/>
+                    <path d="M96 67L152 97V157L96 127V67Z" fill="#FFFFFF"/>
+                    <path d="M96 9L177 52L96 67L15 52L96 9Z" fill="#FFFFFF"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-blue-900">About MediaPipe</h2>
+                  <p className="text-sm text-blue-700">
+                    Google's open-source framework for building multimodal applied ML pipelines
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="overflow-hidden">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-blue-500" />
+                    Key Features
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <h3 className="text-sm font-medium text-blue-800">Real-time Performance</h3>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Optimized for real-time analysis on various devices, including mobile phones and browsers
+                      </p>
+                    </div>
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <h3 className="text-sm font-medium text-green-800">Cross-platform</h3>
+                      <p className="text-xs text-green-600 mt-1">
+                        Works across Android, iOS, web, and desktop applications
+                      </p>
+                    </div>
+                    <div className="p-3 bg-purple-50 rounded-lg">
+                      <h3 className="text-sm font-medium text-purple-800">Pre-trained Models</h3>
+                      <p className="text-xs text-purple-600 mt-1">
+                        Includes ready-to-use ML solutions for various tasks like pose estimation
+                      </p>
+                    </div>
+                    <div className="p-3 bg-yellow-50 rounded-lg">
+                      <h3 className="text-sm font-medium text-yellow-800">Customizable</h3>
+                      <p className="text-xs text-yellow-600 mt-1">
+                        Can be extended and customized for specific application needs
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <h3 className="text-sm font-medium mb-2">Applications</h3>
+                    <ul className="space-y-1">
+                      <li className="text-sm flex items-start gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5"></span>
+                        <span>Physical therapy and rehabilitation</span>
+                      </li>
+                      <li className="text-sm flex items-start gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5"></span>
+                        <span>Fitness coaching and form correction</span>
+                      </li>
+                      <li className="text-sm flex items-start gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5"></span>
+                        <span>Sports performance analysis</span>
+                      </li>
+                      <li className="text-sm flex items-start gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5"></span>
+                        <span>Ergonomic assessment and workplace safety</span>
+                      </li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-6">
+                <MediaPipeShowcase />
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Info className="h-5 w-5 text-blue-500" />
+                      Learn More
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <a
+                        href="https://developers.google.com/mediapipe"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        <h3 className="text-sm font-medium text-blue-800">MediaPipe Documentation</h3>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Official documentation and guides from Google
+                        </p>
+                      </a>
+
+                      <a
+                        href="https://developers.google.com/mediapipe/solutions/vision/pose_landmarker"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        <h3 className="text-sm font-medium text-blue-800">Pose Landmarker</h3>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Learn about the specific pose detection model used in this application
+                        </p>
+                      </a>
+
+                      <a
+                        href="https://github.com/google/mediapipe"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        <h3 className="text-sm font-medium text-blue-800">GitHub Repository</h3>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Explore the open-source code and contribute to the project
+                        </p>
+                      </a>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
