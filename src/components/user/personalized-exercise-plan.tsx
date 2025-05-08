@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,8 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Activity, Calendar, ArrowRight, CheckCircle, Info, AlertCircle, Download, Printer, Share2, Sparkles } from "lucide-react";
+import { Activity, Calendar, ArrowRight, CheckCircle, Info, AlertCircle, Download, Printer, Share2, Sparkles, Camera, Video, BarChart2, RefreshCw } from "lucide-react";
+import { motion } from "framer-motion";
 
 // Types for the exercise plan
 interface Exercise {
@@ -68,6 +71,8 @@ interface PatientGoal {
 }
 
 export function PersonalizedExercisePlan() {
+  const router = useRouter();
+
   // State for form data
   const [patientProfile, setPatientProfile] = useState<PatientProfile>({
     age: '35',
@@ -100,6 +105,21 @@ export function PersonalizedExercisePlan() {
   const [activeDay, setActiveDay] = useState('day1');
   const [showPlanDetails, setShowPlanDetails] = useState(false);
 
+  // OpenPose integration states
+  const [hasOpenPoseData, setHasOpenPoseData] = useState(false);
+  const [openPoseLoading, setOpenPoseLoading] = useState(false);
+  const [openPoseScores, setOpenPoseScores] = useState<Record<string, number>>({
+    shoulders: 85,
+    back: 72,
+    knees: 68,
+    overall: 75
+  });
+  const [openPoseRecommendations, setOpenPoseRecommendations] = useState<string[]>([
+    "Focus on exercises that improve knee stability",
+    "Include posture correction for anterior pelvic tilt",
+    "Add shoulder mobility exercises"
+  ]);
+
   // Handle form input changes
   const handlePatientProfileChange = (field: keyof PatientProfile, value: string) => {
     setPatientProfile(prev => ({ ...prev, [field]: value }));
@@ -113,14 +133,45 @@ export function PersonalizedExercisePlan() {
     setPatientGoal(prev => ({ ...prev, [field]: value }));
   };
 
+  // Function to fetch OpenPose data
+  const fetchOpenPoseData = () => {
+    setOpenPoseLoading(true);
+    toast.info("Fetching your latest OpenPose analysis data...");
+
+    // Simulate API call to fetch OpenPose data
+    setTimeout(() => {
+      // In a real implementation, this would be an actual API call
+      setHasOpenPoseData(true);
+      setOpenPoseLoading(false);
+
+      // Update video analysis based on OpenPose data
+      setVideoAnalysis(prev => ({
+        ...prev,
+        movementIssues: 'Knee valgus during squats (detected by OpenPose), hip drop on left side during single-leg exercises',
+        romAssessment: 'Limited knee flexion (0-110°), full extension achieved, shoulder rotation limited to 80%',
+        postureNotes: 'Forward head posture (12° forward), anterior pelvic tilt (18°)'
+      }));
+
+      toast.success("OpenPose analysis data imported successfully!", {
+        description: "Your exercise plan will be optimized based on this data."
+      });
+    }, 2000);
+  };
+
+  // Function to navigate to OpenPose Analyzer
+  const goToOpenPoseAnalyzer = () => {
+    router.push('/openpose-analyzer');
+  };
+
   // Generate the exercise plan
   const generateExercisePlan = () => {
     setGeneratingPlan(true);
     toast.info("Generating your personalized 7-day exercise plan...");
-    
+
     // Simulate API call delay
     setTimeout(() => {
       // This is a mock response - in a real app, this would come from an API
+      // If we have OpenPose data, we'd include it in the API request
       const mockPlan: ExercisePlan = {
         plan: {
           day1: {
@@ -223,7 +274,7 @@ export function PersonalizedExercisePlan() {
         ],
         motivation: "You're making excellent progress toward returning to tennis! Each exercise brings you closer to your goal. Remember that consistency is more important than intensity at this stage of recovery."
       };
-      
+
       setExercisePlan(mockPlan);
       setGeneratingPlan(false);
       setShowPlanDetails(true);
@@ -258,16 +309,16 @@ export function PersonalizedExercisePlan() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="age">Age</Label>
-                  <Input 
-                    id="age" 
-                    value={patientProfile.age} 
+                  <Input
+                    id="age"
+                    value={patientProfile.age}
                     onChange={(e) => handlePatientProfileChange('age', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender</Label>
-                  <Select 
-                    value={patientProfile.gender} 
+                  <Select
+                    value={patientProfile.gender}
                     onValueChange={(value) => handlePatientProfileChange('gender', value)}
                   >
                     <SelectTrigger>
@@ -282,17 +333,17 @@ export function PersonalizedExercisePlan() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="height">Height (cm)</Label>
-                  <Input 
-                    id="height" 
-                    value={patientProfile.height} 
+                  <Input
+                    id="height"
+                    value={patientProfile.height}
                     onChange={(e) => handlePatientProfileChange('height', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="weight">Weight (kg)</Label>
-                  <Input 
-                    id="weight" 
-                    value={patientProfile.weight} 
+                  <Input
+                    id="weight"
+                    value={patientProfile.weight}
                     onChange={(e) => handlePatientProfileChange('weight', e.target.value)}
                   />
                 </div>
@@ -300,9 +351,9 @@ export function PersonalizedExercisePlan() {
 
               <div className="space-y-2">
                 <Label htmlFor="medicalConditions">Known Medical Conditions</Label>
-                <Textarea 
-                  id="medicalConditions" 
-                  value={patientProfile.medicalConditions} 
+                <Textarea
+                  id="medicalConditions"
+                  value={patientProfile.medicalConditions}
                   onChange={(e) => handlePatientProfileChange('medicalConditions', e.target.value)}
                   placeholder="List any relevant medical conditions"
                 />
@@ -310,9 +361,9 @@ export function PersonalizedExercisePlan() {
 
               <div className="space-y-2">
                 <Label htmlFor="injuryType">Injury Type</Label>
-                <Input 
-                  id="injuryType" 
-                  value={patientProfile.injuryType} 
+                <Input
+                  id="injuryType"
+                  value={patientProfile.injuryType}
                   onChange={(e) => handlePatientProfileChange('injuryType', e.target.value)}
                   placeholder="e.g., ACL tear, rotator cuff injury"
                 />
@@ -320,8 +371,8 @@ export function PersonalizedExercisePlan() {
 
               <div className="space-y-2">
                 <Label htmlFor="injurySeverity">Injury Severity</Label>
-                <Select 
-                  value={patientProfile.injurySeverity} 
+                <Select
+                  value={patientProfile.injurySeverity}
                   onValueChange={(value) => handlePatientProfileChange('injurySeverity', value)}
                 >
                   <SelectTrigger>
@@ -337,9 +388,9 @@ export function PersonalizedExercisePlan() {
 
               <div className="space-y-2">
                 <Label htmlFor="painPoints">Pain Points</Label>
-                <Input 
-                  id="painPoints" 
-                  value={patientProfile.painPoints} 
+                <Input
+                  id="painPoints"
+                  value={patientProfile.painPoints}
                   onChange={(e) => handlePatientProfileChange('painPoints', e.target.value)}
                   placeholder="e.g., Left knee, lower back"
                 />
@@ -347,9 +398,9 @@ export function PersonalizedExercisePlan() {
 
               <div className="space-y-2">
                 <Label htmlFor="therapistNotes">Physiotherapist Notes</Label>
-                <Textarea 
-                  id="therapistNotes" 
-                  value={patientProfile.therapistNotes} 
+                <Textarea
+                  id="therapistNotes"
+                  value={patientProfile.therapistNotes}
                   onChange={(e) => handlePatientProfileChange('therapistNotes', e.target.value)}
                   placeholder="Notes from your physiotherapist"
                 />
@@ -358,34 +409,200 @@ export function PersonalizedExercisePlan() {
 
             {/* Video Analysis Tab */}
             <TabsContent value="analysis" className="space-y-4 mt-4">
+              {/* OpenPose Integration Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100 mb-6">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col md:flex-row gap-4 items-start">
+                      <div className="bg-blue-100 p-3 rounded-full">
+                        <Camera className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-medium text-blue-900">OpenPose Analyzer Integration</h3>
+                        <p className="text-blue-700 mt-1">
+                          Import your latest OpenPose analysis data to optimize your exercise plan
+                        </p>
+
+                        {hasOpenPoseData ? (
+                          <div className="mt-4 space-y-4">
+                            <div className="bg-white p-4 rounded-lg border border-blue-100">
+                              <h4 className="font-medium text-blue-800 flex items-center">
+                                <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                                OpenPose Data Imported
+                              </h4>
+
+                              <div className="mt-3 space-y-3">
+                                <div>
+                                  <div className="flex justify-between text-sm mb-1">
+                                    <span className="text-gray-600">Shoulder Alignment</span>
+                                    <span className={`font-medium ${openPoseScores.shoulders >= 80 ? 'text-green-600' : openPoseScores.shoulders >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                      {openPoseScores.shoulders}%
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div
+                                      className={`h-2 rounded-full ${openPoseScores.shoulders >= 80 ? 'bg-green-500' : openPoseScores.shoulders >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                      style={{ width: `${openPoseScores.shoulders}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="flex justify-between text-sm mb-1">
+                                    <span className="text-gray-600">Back Posture</span>
+                                    <span className={`font-medium ${openPoseScores.back >= 80 ? 'text-green-600' : openPoseScores.back >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                      {openPoseScores.back}%
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div
+                                      className={`h-2 rounded-full ${openPoseScores.back >= 80 ? 'bg-green-500' : openPoseScores.back >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                      style={{ width: `${openPoseScores.back}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="flex justify-between text-sm mb-1">
+                                    <span className="text-gray-600">Knee Alignment</span>
+                                    <span className={`font-medium ${openPoseScores.knees >= 80 ? 'text-green-600' : openPoseScores.knees >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                      {openPoseScores.knees}%
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div
+                                      className={`h-2 rounded-full ${openPoseScores.knees >= 80 ? 'bg-green-500' : openPoseScores.knees >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                      style={{ width: `${openPoseScores.knees}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-4">
+                                <h5 className="text-sm font-medium text-blue-800">Recommendations</h5>
+                                <ul className="mt-2 space-y-1">
+                                  {openPoseRecommendations.map((rec, index) => (
+                                    <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
+                                      <ArrowRight className="h-3 w-3 text-blue-500 mt-1 flex-shrink-0" />
+                                      {rec}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-blue-600 border-blue-200"
+                                onClick={fetchOpenPoseData}
+                              >
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Refresh Data
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-blue-600 border-blue-200"
+                                onClick={goToOpenPoseAnalyzer}
+                              >
+                                <Camera className="h-3 w-3 mr-1" />
+                                Open Analyzer
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 flex flex-col md:flex-row gap-3">
+                            {openPoseLoading ? (
+                              <div className="w-full bg-white p-4 rounded-lg border border-blue-100 flex items-center justify-center">
+                                <div className="flex flex-col items-center">
+                                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                                  <p className="text-blue-600 text-sm">Fetching OpenPose data...</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <Button
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={fetchOpenPoseData}
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Import OpenPose Data
+                                </Button>
+
+                                <Button
+                                  variant="outline"
+                                  className="border-blue-200 text-blue-600"
+                                  onClick={goToOpenPoseAnalyzer}
+                                >
+                                  <Camera className="h-4 w-4 mr-2" />
+                                  Go to OpenPose Analyzer
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
               <div className="space-y-2">
                 <Label htmlFor="movementIssues">Detected Movement Issues</Label>
-                <Textarea 
-                  id="movementIssues" 
-                  value={videoAnalysis.movementIssues} 
+                <Textarea
+                  id="movementIssues"
+                  value={videoAnalysis.movementIssues}
                   onChange={(e) => handleVideoAnalysisChange('movementIssues', e.target.value)}
                   placeholder="e.g., hip tilt, knee valgus"
+                  className={hasOpenPoseData ? "border-blue-200 bg-blue-50/30" : ""}
                 />
+                {hasOpenPoseData && (
+                  <p className="text-xs text-blue-600 italic">
+                    <Info className="h-3 w-3 inline mr-1" />
+                    This field contains data from OpenPose analysis
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="romAssessment">Range of Motion (ROM) Assessment</Label>
-                <Textarea 
-                  id="romAssessment" 
-                  value={videoAnalysis.romAssessment} 
+                <Textarea
+                  id="romAssessment"
+                  value={videoAnalysis.romAssessment}
                   onChange={(e) => handleVideoAnalysisChange('romAssessment', e.target.value)}
                   placeholder="e.g., limited shoulder flexion"
+                  className={hasOpenPoseData ? "border-blue-200 bg-blue-50/30" : ""}
                 />
+                {hasOpenPoseData && (
+                  <p className="text-xs text-blue-600 italic">
+                    <Info className="h-3 w-3 inline mr-1" />
+                    This field contains data from OpenPose analysis
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="postureNotes">Posture and Balance Notes</Label>
-                <Textarea 
-                  id="postureNotes" 
-                  value={videoAnalysis.postureNotes} 
+                <Textarea
+                  id="postureNotes"
+                  value={videoAnalysis.postureNotes}
                   onChange={(e) => handleVideoAnalysisChange('postureNotes', e.target.value)}
                   placeholder="Notes about posture and balance"
+                  className={hasOpenPoseData ? "border-blue-200 bg-blue-50/30" : ""}
                 />
+                {hasOpenPoseData && (
+                  <p className="text-xs text-blue-600 italic">
+                    <Info className="h-3 w-3 inline mr-1" />
+                    This field contains data from OpenPose analysis
+                  </p>
+                )}
               </div>
             </TabsContent>
 
@@ -393,9 +610,9 @@ export function PersonalizedExercisePlan() {
             <TabsContent value="goals" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="mainGoal">Main Goal</Label>
-                <Input 
-                  id="mainGoal" 
-                  value={patientGoal.mainGoal} 
+                <Input
+                  id="mainGoal"
+                  value={patientGoal.mainGoal}
                   onChange={(e) => handlePatientGoalChange('mainGoal', e.target.value)}
                   placeholder="e.g., reduce pain, increase mobility, return to sport"
                 />
@@ -403,19 +620,19 @@ export function PersonalizedExercisePlan() {
 
               <div className="space-y-2">
                 <Label htmlFor="minutesPerDay">Time Available Per Day (minutes)</Label>
-                <Input 
-                  id="minutesPerDay" 
-                  type="number" 
-                  value={patientGoal.minutesPerDay} 
+                <Input
+                  id="minutesPerDay"
+                  type="number"
+                  value={patientGoal.minutesPerDay}
                   onChange={(e) => handlePatientGoalChange('minutesPerDay', e.target.value)}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="equipment">Equipment Available</Label>
-                <Input 
-                  id="equipment" 
-                  value={patientGoal.equipment} 
+                <Input
+                  id="equipment"
+                  value={patientGoal.equipment}
                   onChange={(e) => handlePatientGoalChange('equipment', e.target.value)}
                   placeholder="e.g., yoga mat, resistance bands, none"
                 />
@@ -423,9 +640,9 @@ export function PersonalizedExercisePlan() {
 
               <div className="space-y-2">
                 <Label htmlFor="preferredStyle">Preferred Exercise Style</Label>
-                <Input 
-                  id="preferredStyle" 
-                  value={patientGoal.preferredStyle} 
+                <Input
+                  id="preferredStyle"
+                  value={patientGoal.preferredStyle}
                   onChange={(e) => handlePatientGoalChange('preferredStyle', e.target.value)}
                   placeholder="e.g., gentle, challenging, yoga-inspired"
                 />
@@ -434,7 +651,7 @@ export function PersonalizedExercisePlan() {
           </Tabs>
 
           {/* Generate Button */}
-          <Button 
+          <Button
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
             onClick={generateExercisePlan}
             disabled={generatingPlan}
@@ -458,13 +675,61 @@ export function PersonalizedExercisePlan() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-xl font-semibold text-indigo-900">Your 7-Day Exercise Plan</h3>
-                  <p className="text-indigo-700 mt-1">Personalized based on your profile and goals</p>
+                  <p className="text-indigo-700 mt-1">
+                    Personalized based on your profile and goals
+                    {hasOpenPoseData && (
+                      <span className="inline-flex items-center ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">
+                        <Camera className="h-3 w-3 mr-1" />
+                        OpenPose Optimized
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <Badge className="bg-indigo-100 text-indigo-700">
                   {new Date().toLocaleDateString()}
                 </Badge>
               </div>
-              
+
+              {hasOpenPoseData && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  transition={{ duration: 0.5 }}
+                  className="mt-4"
+                >
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <h4 className="font-medium text-blue-800 flex items-center">
+                      <Camera className="h-4 w-4 mr-2 text-blue-600" />
+                      OpenPose Analysis Integration
+                    </h4>
+
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="bg-white p-3 rounded-lg border border-blue-100">
+                        <p className="text-xs text-blue-700 font-medium">POSTURE SCORE</p>
+                        <div className="flex items-end gap-1">
+                          <p className="text-2xl font-bold text-blue-900">{openPoseScores.overall}%</p>
+                          <p className="text-xs text-blue-700 mb-1">overall</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-3 rounded-lg border border-blue-100">
+                        <p className="text-xs text-blue-700 font-medium">FOCUS AREAS</p>
+                        <p className="text-sm font-medium text-blue-900 mt-1">
+                          Knee Stability, Posture Correction
+                        </p>
+                      </div>
+
+                      <div className="bg-white p-3 rounded-lg border border-blue-100">
+                        <p className="text-xs text-blue-700 font-medium">EXERCISE ADAPTATIONS</p>
+                        <p className="text-sm font-medium text-blue-900 mt-1">
+                          {openPoseScores.knees < 70 ? "Modified knee exercises" : "Standard protocol"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
               <div className="mt-4 bg-white p-4 rounded-lg border border-indigo-100">
                 <div className="flex items-start gap-3">
                   <div className="bg-indigo-100 p-2 rounded-full">
@@ -479,12 +744,21 @@ export function PersonalizedExercisePlan() {
                           <span className="text-gray-700">{warning}</span>
                         </li>
                       ))}
+                      {hasOpenPoseData && (
+                        <li className="flex items-start gap-2 text-sm">
+                          <Camera className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-blue-700">
+                            This plan has been optimized based on your OpenPose analysis data.
+                            Exercises have been adjusted to address your specific posture and movement patterns.
+                          </span>
+                        </li>
+                      )}
                     </ul>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             {/* Day Selector */}
             <div className="flex overflow-x-auto pb-2 space-x-2">
               {Object.keys(exercisePlan.plan).map((day, index) => (
@@ -498,7 +772,7 @@ export function PersonalizedExercisePlan() {
                 </Button>
               ))}
             </div>
-            
+
             {/* Day Plan */}
             <div className="space-y-6">
               {/* Warmup */}
@@ -525,7 +799,7 @@ export function PersonalizedExercisePlan() {
                   ))}
                 </div>
               </div>
-              
+
               {/* Main Exercises */}
               <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-5 rounded-xl border border-purple-100">
                 <h4 className="text-lg font-semibold text-purple-900 mb-4 flex items-center">
@@ -550,7 +824,7 @@ export function PersonalizedExercisePlan() {
                   ))}
                 </div>
               </div>
-              
+
               {/* Cooldown */}
               <div className="bg-gradient-to-br from-green-50 to-teal-50 p-5 rounded-xl border border-green-100">
                 <h4 className="text-lg font-semibold text-green-900 mb-4 flex items-center">
@@ -575,7 +849,7 @@ export function PersonalizedExercisePlan() {
                   ))}
                 </div>
               </div>
-              
+
               {/* Motivation Message */}
               <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-xl border border-amber-100">
                 <div className="flex items-start gap-3">
@@ -588,7 +862,7 @@ export function PersonalizedExercisePlan() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-3">
                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -603,8 +877,8 @@ export function PersonalizedExercisePlan() {
                   <Share2 className="mr-2 h-4 w-4" />
                   Share with Therapist
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="border-indigo-200 text-indigo-700 ml-auto"
                   onClick={() => setShowPlanDetails(false)}
                 >

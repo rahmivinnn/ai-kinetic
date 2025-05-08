@@ -56,6 +56,18 @@ export default function OpenPoseAnalyzerPage() {
   const [videoId, setVideoId] = useState<string | null>(null);
   const [analysisSummary, setAnalysisSummary] = useState<any>(null);
 
+  // Reference pose comparison states
+  const [showReferenceComparison, setShowReferenceComparison] = useState(false);
+  const [referenceExercises, setReferenceExercises] = useState([
+    { id: 'squat', name: 'Squat', thumbnail: '/exercises/squat.jpg' },
+    { id: 'lunge', name: 'Lunge', thumbnail: '/exercises/lunge.jpg' },
+    { id: 'plank', name: 'Plank', thumbnail: '/exercises/plank.jpg' },
+    { id: 'pushup', name: 'Push-up', thumbnail: '/exercises/pushup.jpg' },
+    { id: 'shoulderpress', name: 'Shoulder Press', thumbnail: '/exercises/shoulder-press.jpg' }
+  ]);
+  const [selectedReference, setSelectedReference] = useState<string | null>(null);
+  const [comparisonResults, setComparisonResults] = useState<any>(null);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<HTMLImageElement>(null);
@@ -384,6 +396,49 @@ export default function OpenPoseAnalyzerPage() {
       return <X className="h-4 w-4 text-red-500" />;
     }
     return <Info className="h-4 w-4 text-blue-500" />;
+  };
+
+  // Function to toggle reference comparison mode
+  const toggleReferenceComparison = () => {
+    setShowReferenceComparison(!showReferenceComparison);
+    if (!showReferenceComparison) {
+      // Reset comparison results when enabling
+      setComparisonResults(null);
+      setSelectedReference(null);
+    }
+  };
+
+  // Function to select a reference exercise
+  const selectReferenceExercise = (exerciseId: string) => {
+    setSelectedReference(exerciseId);
+
+    // Simulate loading comparison results
+    toast.info(`Comparing your pose with ${referenceExercises.find(ex => ex.id === exerciseId)?.name} reference`);
+
+    setTimeout(() => {
+      // Mock comparison results
+      const mockResults = {
+        overallSimilarity: Math.floor(Math.random() * 30) + 60, // 60-90%
+        jointComparisons: {
+          shoulders: { reference: 90, current: 82, difference: 8 },
+          elbows: { reference: 170, current: 155, difference: 15 },
+          hips: { reference: 100, current: 92, difference: 8 },
+          knees: { reference: 130, current: 115, difference: 15 },
+          ankles: { reference: 85, current: 80, difference: 5 }
+        },
+        recommendations: [
+          "Straighten your elbows more to match the reference pose",
+          "Bend your knees slightly less for proper form",
+          "Keep your shoulders more level for better alignment"
+        ]
+      };
+
+      setComparisonResults(mockResults);
+
+      toast.success("Pose comparison complete", {
+        description: `Your pose is ${mockResults.overallSimilarity}% similar to the reference`
+      });
+    }, 2000);
   };
 
   return (
@@ -726,6 +781,14 @@ export default function OpenPoseAnalyzerPage() {
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
+                      onClick={toggleReferenceComparison}
+                      className={showReferenceComparison ? "border-purple-200 text-purple-600 bg-purple-50" : "border-blue-200 text-blue-600 hover:bg-blue-50"}
+                    >
+                      <Activity className="h-4 w-4 mr-2" />
+                      {showReferenceComparison ? "Hide Reference" : "Compare with Reference"}
+                    </Button>
+                    <Button
+                      variant="outline"
                       size="icon"
                       onClick={() => setIsStreaming(false)}
                       className="border-red-200 text-red-600 hover:bg-red-50"
@@ -852,6 +915,143 @@ export default function OpenPoseAnalyzerPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Reference Pose Comparison */}
+          <AnimatePresence>
+            {showReferenceComparison && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Card className="border-2 border-purple-100 hover:shadow-lg transition-all duration-300 mb-6">
+                  <CardHeader className="pb-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-b">
+                    <CardTitle className="text-lg flex items-center">
+                      <div className="bg-purple-100 p-1 rounded-full mr-2">
+                        <Activity className="h-4 w-4 text-purple-700" />
+                      </div>
+                      Reference Pose Comparison
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    {!selectedReference ? (
+                      <div>
+                        <p className="text-sm text-purple-700 mb-4">
+                          Select a reference exercise to compare your current pose
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                          {referenceExercises.map((exercise) => (
+                            <motion.div
+                              key={exercise.id}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="cursor-pointer"
+                              onClick={() => selectReferenceExercise(exercise.id)}
+                            >
+                              <div className="bg-purple-50 border border-purple-100 rounded-lg overflow-hidden">
+                                <div className="h-24 bg-purple-200 flex items-center justify-center">
+                                  <Activity className="h-8 w-8 text-purple-500" />
+                                </div>
+                                <div className="p-2 text-center">
+                                  <p className="text-sm font-medium text-purple-900">{exercise.name}</p>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : comparisonResults ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="bg-purple-100 p-2 rounded-full">
+                              <Activity className="h-5 w-5 text-purple-700" />
+                            </div>
+                            <div className="ml-3">
+                              <p className="text-sm font-medium text-purple-900">
+                                {referenceExercises.find(ex => ex.id === selectedReference)?.name} Comparison
+                              </p>
+                              <p className="text-xs text-purple-700">
+                                Comparing your current pose with reference
+                              </p>
+                            </div>
+                          </div>
+                          <div className="bg-purple-50 px-3 py-1 rounded-full border border-purple-100">
+                            <p className="text-sm font-bold text-purple-900">
+                              {comparisonResults.overallSimilarity}% Match
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 mt-4">
+                          <p className="text-sm font-medium text-purple-900">Joint Angle Comparison</p>
+
+                          {Object.entries(comparisonResults.jointComparisons).map(([joint, data]: [string, any]) => (
+                            <div key={joint} className="bg-purple-50/50 p-3 rounded-lg border border-purple-100">
+                              <div className="flex justify-between items-center mb-1">
+                                <p className="text-sm font-medium capitalize">{joint}</p>
+                                <p className="text-xs text-purple-700">
+                                  Difference: <span className={data.difference > 10 ? "text-red-600 font-bold" : "text-green-600 font-bold"}>
+                                    {data.difference}°
+                                  </span>
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-purple-700 w-16">Reference:</p>
+                                <div className="flex-1 h-2 bg-purple-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-purple-500 rounded-full" style={{ width: `${(data.reference / 180) * 100}%` }}></div>
+                                </div>
+                                <p className="text-xs font-medium text-purple-900 w-8 text-right">{data.reference}°</p>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-purple-700 w-16">Your pose:</p>
+                                <div className="flex-1 h-2 bg-purple-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(data.current / 180) * 100}%` }}></div>
+                                </div>
+                                <p className="text-xs font-medium text-purple-900 w-8 text-right">{data.current}°</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 mt-4">
+                          <p className="text-sm font-medium text-purple-900 mb-2">Recommendations</p>
+                          <ul className="space-y-1">
+                            {comparisonResults.recommendations.map((rec: string, index: number) => (
+                              <li key={index} className="flex items-start gap-2 text-sm">
+                                <ArrowRight className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-purple-800">{rec}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-purple-600 border-purple-200"
+                            onClick={() => setSelectedReference(null)}
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Choose Different Reference
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center p-8">
+                        <div className="flex flex-col items-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-2"></div>
+                          <p className="text-purple-600 text-sm">Comparing poses...</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Confidence Scores */}
           <Card className="border-2 border-primary/10 hover:shadow-lg transition-all duration-300">
