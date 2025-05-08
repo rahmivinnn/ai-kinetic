@@ -8,8 +8,18 @@ echo "npm version: $(npm -v)"
 echo "Installing dependencies..."
 npm install --legacy-peer-deps
 
-# Verify globals.css file
-echo "Checking globals.css file..."
+# Fix globals.css file
+echo "Fixing globals.css file..."
+# Create a temporary file with the correct Tailwind directives
+echo "@tailwind base;" > src/app/globals.css.tmp
+echo "@tailwind components;" >> src/app/globals.css.tmp
+echo "@tailwind utilities;" >> src/app/globals.css.tmp
+# Append the rest of the file, skipping any existing Tailwind directives
+sed -n '4,$p' src/app/globals.css >> src/app/globals.css.tmp
+# Replace the original file
+mv src/app/globals.css.tmp src/app/globals.css
+# Show the beginning of the fixed file
+echo "Fixed globals.css file:"
 cat src/app/globals.css | head -10
 
 # Create a simple postcss.config.js if it doesn't exist
