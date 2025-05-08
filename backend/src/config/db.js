@@ -42,13 +42,25 @@ export const connectDB = async () => {
     // Test PostgreSQL connection
     await sequelize.authenticate();
     logger.info('PostgreSQL connected');
-    
+
+    // Set global variable for sequelize connection
+    global.sequelize = sequelize;
+
     // Connect to MongoDB
     await connectMongoDB();
-    
+
     return { sequelize, mongoose };
   } catch (error) {
     logger.error(`Database connection error: ${error.message}`);
+
+    // In development mode, we'll continue without exiting
+    if (process.env.NODE_ENV === 'development') {
+      logger.warn('Continuing in development mode without database connection...');
+      global.sequelize = null;
+      return { sequelize: null, mongoose: null };
+    }
+
+    // In production mode, we'll exit
     process.exit(1);
   }
 };

@@ -24,7 +24,40 @@ const generateRefreshToken = (user) => {
 export const register = async (req, res) => {
   try {
     const { firstName, lastName, email, password, role } = req.body;
-    
+
+    // In development mode without database, return mock data
+    if (process.env.NODE_ENV === 'development' && !global.sequelize) {
+      logger.warn('Using mock data for registration in development mode');
+
+      // Generate a mock user ID
+      const mockUserId = '5394102a-d3f6-43ad-8ebf-4a8f55f709f4';
+
+      // Create a mock user object
+      const mockUser = {
+        id: mockUserId,
+        firstName,
+        lastName,
+        email,
+        role: role || 'patient',
+        createdAt: new Date()
+      };
+
+      // Generate tokens
+      const token = 'mock-jwt-token-' + mockUserId;
+      const refreshToken = 'mock-refresh-token-' + mockUserId;
+
+      return res.status(201).json({
+        success: true,
+        message: 'User registered successfully (MOCK DATA)',
+        data: {
+          user: mockUser,
+          token,
+          refreshToken
+        }
+      });
+    }
+
+    // Normal flow with database
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -33,7 +66,7 @@ export const register = async (req, res) => {
         message: 'User already exists with this email'
       });
     }
-    
+
     // Create new user
     const user = await User.create({
       firstName,
@@ -42,15 +75,15 @@ export const register = async (req, res) => {
       password,
       role: role || 'patient'
     });
-    
+
     // Generate tokens
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
-    
+
     // Update user with refresh token
     user.refreshToken = refreshToken;
     await user.save();
-    
+
     // Return user data and tokens
     return res.status(201).json({
       success: true,
@@ -82,7 +115,41 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
+    // In development mode without database, return mock data
+    if (process.env.NODE_ENV === 'development' && !global.sequelize) {
+      logger.warn('Using mock data for login in development mode');
+
+      // Generate a mock user ID
+      const mockUserId = '5394102a-d3f6-43ad-8ebf-4a8f55f709f4';
+
+      // Create a mock user object
+      const mockUser = {
+        id: mockUserId,
+        firstName: 'Test',
+        lastName: 'User',
+        email,
+        role: 'patient',
+        profileImage: null,
+        lastLogin: new Date()
+      };
+
+      // Generate tokens
+      const token = 'mock-jwt-token-' + mockUserId;
+      const refreshToken = 'mock-refresh-token-' + mockUserId;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful (MOCK DATA)',
+        data: {
+          user: mockUser,
+          token,
+          refreshToken
+        }
+      });
+    }
+
+    // Normal flow with database
     // Find user by email
     const user = await User.findOne({ where: { email } });
     if (!user) {
@@ -91,7 +158,7 @@ export const login = async (req, res) => {
         message: 'Invalid email or password'
       });
     }
-    
+
     // Check if user is active
     if (!user.isActive) {
       return res.status(403).json({
@@ -99,7 +166,7 @@ export const login = async (req, res) => {
         message: 'Your account has been deactivated'
       });
     }
-    
+
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
@@ -108,16 +175,16 @@ export const login = async (req, res) => {
         message: 'Invalid email or password'
       });
     }
-    
+
     // Generate tokens
     const token = generateToken(user);
     const refreshToken = generateRefreshToken(user);
-    
+
     // Update user with refresh token and last login
     user.refreshToken = refreshToken;
     user.lastLogin = new Date();
     await user.save();
-    
+
     // Return user data and tokens
     return res.status(200).json({
       success: true,
@@ -150,20 +217,20 @@ export const login = async (req, res) => {
 export const refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    
+
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
         message: 'Refresh token is required'
       });
     }
-    
+
     // Verify refresh token
     const decoded = jwt.verify(
       refreshToken,
       process.env.JWT_REFRESH_SECRET || 'refresh-secret'
     );
-    
+
     // Find user by id
     const user = await User.findByPk(decoded.id);
     if (!user || user.refreshToken !== refreshToken) {
@@ -172,15 +239,15 @@ export const refreshToken = async (req, res) => {
         message: 'Invalid refresh token'
       });
     }
-    
+
     // Generate new tokens
     const newToken = generateToken(user);
     const newRefreshToken = generateRefreshToken(user);
-    
+
     // Update user with new refresh token
     user.refreshToken = newRefreshToken;
     await user.save();
-    
+
     // Return new tokens
     return res.status(200).json({
       success: true,
@@ -192,14 +259,14 @@ export const refreshToken = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Refresh token error: ${error.message}`);
-    
+
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
         message: 'Refresh token expired. Please login again'
       });
     }
-    
+
     return res.status(500).json({
       success: false,
       message: 'Error refreshing token',
@@ -214,7 +281,7 @@ export const logout = async (req, res) => {
     // Clear refresh token
     req.user.refreshToken = null;
     await req.user.save();
-    
+
     return res.status(200).json({
       success: true,
       message: 'Logout successful'
@@ -266,7 +333,7 @@ export const getProfile = async (req, res) => {
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     // Check current password
     const isPasswordValid = await req.user.comparePassword(currentPassword);
     if (!isPasswordValid) {
@@ -275,11 +342,11 @@ export const changePassword = async (req, res) => {
         message: 'Current password is incorrect'
       });
     }
-    
+
     // Update password
     req.user.password = newPassword;
     await req.user.save();
-    
+
     return res.status(200).json({
       success: true,
       message: 'Password changed successfully'

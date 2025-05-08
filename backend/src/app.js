@@ -20,8 +20,26 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
-// Connect to databases
-connectDB();
+// Connect to databases (with error handling)
+try {
+  // In development, we'll continue even if database connection fails
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      connectDB();
+    } catch (error) {
+      logger.warn(`Database connection failed in development mode: ${error.message}`);
+      logger.warn('Continuing without database connection...');
+    }
+  } else {
+    // In production, we'll exit if database connection fails
+    connectDB();
+  }
+} catch (error) {
+  logger.error(`Database connection error: ${error.message}`);
+  if (process.env.NODE_ENV !== 'development') {
+    process.exit(1);
+  }
+}
 
 // Middleware
 app.use(cors());
