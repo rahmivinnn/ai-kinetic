@@ -76,6 +76,30 @@ Kinetic AI is an AI-powered physiotherapy platform that helps patients recover f
 
 6. Open your browser and navigate to `http://localhost:3000`
 
+## Deployment
+
+### Deploying to Vercel
+
+1. Create a Vercel account at [vercel.com](https://vercel.com) if you don't have one
+2. Install the Vercel CLI:
+   ```
+   npm install -g vercel
+   ```
+3. Login to Vercel:
+   ```
+   vercel login
+   ```
+4. Deploy the project:
+   ```
+   vercel
+   ```
+5. For production deployment:
+   ```
+   vercel --prod
+   ```
+
+The application is currently deployed at: [https://ai-kinetic.vercel.app](https://ai-kinetic.vercel.app)
+
 ## Project Structure
 
 ```
