@@ -141,12 +141,14 @@ const UserHome = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 animate-fade-in">
+      {/* Header with gradient text */}
+      <div className="mb-8 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 p-6 rounded-xl border border-blue-100 animate-fade-in shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-blue-900">Welcome back, {user?.firstName || 'Patient'}</h1>
-            <p className="text-blue-700 mt-1">
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600">
+              Welcome back, {user?.firstName || 'Patient'}
+            </h1>
+            <p className="text-indigo-700 mt-1 font-medium">
               Here's an overview of your recovery journey
             </p>
           </div>
@@ -641,186 +643,313 @@ const UserHome = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Testimonials Section */}
+      <div className="mb-12">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold flex items-center">
+            <span className="bg-gradient-to-r from-purple-400 to-pink-500 p-1 rounded-full mr-2">
+              <MessageSquare className="h-5 w-5 text-white" />
+            </span>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+              Patient Testimonials
+            </span>
+          </h2>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-purple-200 text-purple-700 hover:bg-purple-50"
+          >
+            Share Your Story
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-100 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="relative">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
+                  MK
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-green-500 h-4 w-4 rounded-full border-2 border-white"></div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-purple-900">Maria K.</h3>
+                <p className="text-xs text-purple-700">Knee Rehabilitation • 3 months</p>
+              </div>
+            </div>
+            <p className="text-sm text-purple-800 italic mb-4">
+              "After my ACL surgery, I was worried about recovery. The AI analysis helped me perfect my form and track progress. I'm back to running now!"
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <svg key={star} className="h-4 w-4 text-yellow-500 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="text-xs text-purple-600 font-medium">2 weeks ago</span>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-6 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="relative">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
+                  JT
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-green-500 h-4 w-4 rounded-full border-2 border-white"></div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-blue-900">James T.</h3>
+                <p className="text-xs text-blue-700">Shoulder Recovery • 6 months</p>
+              </div>
+            </div>
+            <p className="text-sm text-blue-800 italic mb-4">
+              "The real-time feedback during exercises is incredible. My physiotherapist can see my progress remotely, and the AI catches form issues I wouldn't notice."
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <svg key={star} className="h-4 w-4 text-yellow-500 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="text-xs text-blue-600 font-medium">1 month ago</span>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-50 to-teal-50 p-6 rounded-xl border border-green-100 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="relative">
+                <div className="h-12 w-12 rounded-full bg-gradient-to-r from-green-400 to-teal-500 flex items-center justify-center text-white font-bold text-lg">
+                  SL
+                </div>
+                <div className="absolute -bottom-1 -right-1 bg-green-500 h-4 w-4 rounded-full border-2 border-white"></div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-green-900">Sarah L.</h3>
+                <p className="text-xs text-green-700">Back Pain • 2 months</p>
+              </div>
+            </div>
+            <p className="text-sm text-green-800 italic mb-4">
+              "As someone with chronic back pain, proper form is crucial. The AI analysis ensures I'm doing exercises correctly, and I've seen a 70% reduction in pain!"
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((star, index) => (
+                  <svg key={star} className={`h-4 w-4 ${index < 4 ? 'text-yellow-500' : 'text-yellow-300'} fill-current`} viewBox="0 0 24 24">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="text-xs text-green-600 font-medium">3 weeks ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Recent Activity */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold flex items-center">
-            <span className="bg-primary/10 p-1 rounded-full mr-2">
-              <Activity className="h-5 w-5 text-primary" />
+            <span className="bg-gradient-to-r from-blue-400 to-indigo-500 p-1 rounded-full mr-2">
+              <Activity className="h-5 w-5 text-white" />
             </span>
-            Recent Activity
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+              Recent Activity
+            </span>
           </h2>
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" className="border-blue-200 text-blue-700 hover:bg-blue-50" asChild>
             <Link href="/activity">View All</Link>
           </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="overflow-hidden border-2 border-primary/10 hover:shadow-lg transition-all duration-300 hover:border-primary/20">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500"></div>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-100 p-2 rounded-full flex-shrink-0">
-                  <Activity className="h-5 w-5 text-blue-700" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-100 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-start gap-4">
+              <div className="bg-gradient-to-r from-blue-400 to-indigo-500 p-3 rounded-full flex-shrink-0 shadow-sm">
+                <Activity className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-semibold text-blue-900">AI Analysis Complete</h4>
+                    <p className="text-sm text-blue-700">
+                      Your squat form video has been analyzed
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Today</span>
                 </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">AI Analysis Complete</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Your squat form video has been analyzed
-                      </p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">Today</span>
+                <div className="mt-4 flex items-center gap-2">
+                  <div className="flex-1 h-2.5 bg-blue-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" style={{ width: '85%' }}></div>
                   </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-500 rounded-full" style={{ width: '85%' }}></div>
-                    </div>
-                    <span className="text-xs font-medium">85%</span>
-                  </div>
-                  <div className="mt-3 flex justify-between">
-                    <span className="text-xs text-muted-foreground">Form accuracy</span>
-                    <span className="text-xs text-green-600">+23% improvement</span>
-                  </div>
-                  <div className="mt-3">
-                    <Button variant="outline" size="sm" className="w-full" asChild>
-                      <Link href="/video-library">
-                        View Analysis
-                        <ArrowRight className="ml-2 h-3 w-3" />
-                      </Link>
-                    </Button>
-                  </div>
+                  <span className="text-sm font-medium text-blue-700">85%</span>
+                </div>
+                <div className="mt-2 flex justify-between">
+                  <span className="text-xs text-blue-700">Form accuracy</span>
+                  <span className="text-xs font-medium bg-green-100 text-green-700 px-2 py-0.5 rounded-full">+23% improvement</span>
+                </div>
+                <div className="mt-4">
+                  <Button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white border-none shadow-sm" asChild>
+                    <Link href="/video-library">
+                      View Detailed Analysis
+                      <ArrowRight className="ml-2 h-3 w-3" />
+                    </Link>
+                  </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="overflow-hidden border-2 border-primary/10 hover:shadow-lg transition-all duration-300 hover:border-primary/20">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-green-500"></div>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="bg-green-100 p-2 rounded-full flex-shrink-0">
-                  <MessageSquare className="h-5 w-5 text-green-700" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">New Message</h4>
-                      <p className="text-sm text-muted-foreground">
+          <div className="bg-gradient-to-br from-green-50 to-teal-50 p-5 rounded-xl border border-green-100 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-start gap-4">
+              <div className="bg-gradient-to-r from-green-400 to-teal-500 p-3 rounded-full flex-shrink-0 shadow-sm">
+                <MessageSquare className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-semibold text-green-900">New Message</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="h-6 w-6 rounded-full bg-green-200 flex items-center justify-center">
+                        <span className="text-xs font-bold text-green-700">DJ</span>
+                      </div>
+                      <p className="text-sm text-green-700">
                         From Dr. Johnson
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">1 hour ago</span>
                   </div>
-                  <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm italic">
-                      "Great progress on your knee exercises! I've noticed significant improvement in your form and range of motion."
-                    </p>
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" asChild>
-                      <Link href="/messages">
-                        Reply
-                        <MessageSquare className="ml-2 h-3 w-3" />
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
-                      <Link href="/video-call">
-                        Video Call
-                        <Video className="ml-2 h-3 w-3" />
-                      </Link>
-                    </Button>
-                  </div>
+                  <span className="text-xs font-medium bg-green-100 text-green-700 px-2 py-1 rounded-full">1 hour ago</span>
+                </div>
+                <div className="mt-3 p-4 bg-white/70 rounded-lg border border-green-100">
+                  <p className="text-sm text-green-800 italic">
+                    "Great progress on your knee exercises! I've noticed significant improvement in your form and range of motion. Keep up the excellent work!"
+                  </p>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button className="flex-1 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white border-none shadow-sm" asChild>
+                    <Link href="/messages">
+                      Reply Now
+                      <MessageSquare className="ml-2 h-3 w-3" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="flex-1 border-green-200 text-green-700 hover:bg-green-50" asChild>
+                    <Link href="/video-call">
+                      Video Call
+                      <Video className="ml-2 h-3 w-3" />
+                    </Link>
+                  </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card className="overflow-hidden border-2 border-primary/10 hover:shadow-lg transition-all duration-300 hover:border-primary/20 md:col-span-2">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-orange-500"></div>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium flex items-center">
-                  <span className="bg-orange-100 p-1 rounded-full mr-2">
-                    <Activity className="h-4 w-4 text-orange-700" />
-                  </span>
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-xl border border-amber-100 shadow-sm hover:shadow-md transition-all md:col-span-2">
+            <div className="flex items-center justify-between mb-5">
+              <h4 className="font-semibold text-amber-900 flex items-center">
+                <span className="bg-gradient-to-r from-amber-400 to-orange-500 p-1.5 rounded-full mr-2 shadow-sm">
+                  <Activity className="h-5 w-5 text-white" />
+                </span>
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-700 to-orange-700">
                   Weekly Progress Summary
-                </h4>
-                <span className="text-xs text-muted-foreground">Last 7 days</span>
-              </div>
+                </span>
+              </h4>
+              <span className="text-xs font-medium bg-amber-100 text-amber-700 px-3 py-1 rounded-full">Last 7 days</span>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-muted/30 p-3 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Exercises Completed</p>
-                      <p className="text-2xl font-bold">{dashboardStats.exercisesCompleted}</p>
-                    </div>
-                    <div className="bg-green-100 p-1 rounded-full">
-                      <Activity className="h-4 w-4 text-green-700" />
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-lg border border-amber-100 shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-amber-700">Exercises Completed</p>
+                    <p className="text-3xl font-bold text-amber-900 mt-1">{dashboardStats.exercisesCompleted}</p>
                   </div>
-                  <div className="mt-2 flex items-center">
-                    <span className="text-xs text-green-600">+12% from last week</span>
+                  <div className="bg-gradient-to-r from-green-400 to-emerald-500 p-2 rounded-full shadow-sm">
+                    <Activity className="h-5 w-5 text-white" />
                   </div>
                 </div>
-
-                <div className="bg-muted/30 p-3 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Form Accuracy</p>
-                      <p className="text-2xl font-bold">85%</p>
-                    </div>
-                    <div className="bg-blue-100 p-1 rounded-full">
-                      <Activity className="h-4 w-4 text-blue-700" />
-                    </div>
-                  </div>
-                  <div className="mt-2 flex items-center">
-                    <span className="text-xs text-green-600">+5% from last week</span>
+                <div className="mt-3 flex items-center">
+                  <div className="flex-1 h-1.5 bg-green-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full" style={{ width: '80%' }}></div>
                   </div>
                 </div>
-
-                <div className="bg-muted/30 p-3 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Pain Level</p>
-                      <p className="text-2xl font-bold">2/10</p>
-                    </div>
-                    <div className="bg-orange-100 p-1 rounded-full">
-                      <Activity className="h-4 w-4 text-orange-700" />
-                    </div>
-                  </div>
-                  <div className="mt-2 flex items-center">
-                    <span className="text-xs text-green-600">-3 points from initial</span>
-                  </div>
-                </div>
-
-                <div className="bg-muted/30 p-3 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Recovery Progress</p>
-                      <p className="text-2xl font-bold">{dashboardStats.progress}%</p>
-                    </div>
-                    <div className="bg-purple-100 p-1 rounded-full">
-                      <Activity className="h-4 w-4 text-purple-700" />
-                    </div>
-                  </div>
-                  <div className="mt-2 flex items-center">
-                    <span className="text-xs text-green-600">On track for full recovery</span>
-                  </div>
+                <div className="mt-2 flex items-center">
+                  <span className="text-xs font-medium bg-green-100 text-green-700 px-2 py-0.5 rounded-full">+12% from last week</span>
                 </div>
               </div>
 
-              <div className="mt-3">
-                <Button variant="outline" size="sm" className="w-full" asChild>
-                  <Link href="/progress-analytics">
-                    View Detailed Analytics
-                    <ArrowRight className="ml-2 h-3 w-3" />
-                  </Link>
-                </Button>
+              <div className="bg-white p-4 rounded-lg border border-amber-100 shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-blue-700">Form Accuracy</p>
+                    <p className="text-3xl font-bold text-blue-900 mt-1">85%</p>
+                  </div>
+                  <div className="bg-gradient-to-r from-blue-400 to-indigo-500 p-2 rounded-full shadow-sm">
+                    <Activity className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center">
+                  <div className="flex-1 h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full" style={{ width: '85%' }}></div>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center">
+                  <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">+5% from last week</span>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+
+              <div className="bg-white p-4 rounded-lg border border-amber-100 shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-orange-700">Pain Level</p>
+                    <p className="text-3xl font-bold text-orange-900 mt-1">2/10</p>
+                  </div>
+                  <div className="bg-gradient-to-r from-orange-400 to-red-500 p-2 rounded-full shadow-sm">
+                    <Activity className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center">
+                  <div className="flex-1 h-1.5 bg-orange-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-orange-400 to-red-500 rounded-full" style={{ width: '20%' }}></div>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center">
+                  <span className="text-xs font-medium bg-green-100 text-green-700 px-2 py-0.5 rounded-full">-3 points from initial</span>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-lg border border-amber-100 shadow-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-purple-700">Recovery Progress</p>
+                    <p className="text-3xl font-bold text-purple-900 mt-1">{dashboardStats.progress}%</p>
+                  </div>
+                  <div className="bg-gradient-to-r from-purple-400 to-pink-500 p-2 rounded-full shadow-sm">
+                    <Activity className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center">
+                  <div className="flex-1 h-1.5 bg-purple-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-purple-400 to-pink-500 rounded-full" style={{ width: `${dashboardStats.progress}%` }}></div>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center">
+                  <span className="text-xs font-medium bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">On track for full recovery</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white border-none shadow-sm" asChild>
+                <Link href="/progress-analytics">
+                  View Detailed Analytics
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
