@@ -19,12 +19,14 @@ export default function WelcomePage() {
   }, [loading, isAuthenticated, router]);
 
   useEffect(() => {
-    // Show welcome screen for 3 seconds
+    // Show welcome screen for 3 seconds, then redirect to dashboard
     const timer = setTimeout(() => {
       setShowWelcome(false);
+      // Redirect to dashboard after welcome animation
+      router.push('/dashboard');
     }, 3000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [router]);
 
   // Show loading state
   if (loading) {
