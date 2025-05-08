@@ -15,7 +15,8 @@ import {
   User,
   Library,
   X,
-  MessageSquare
+  MessageSquare,
+  Camera
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";

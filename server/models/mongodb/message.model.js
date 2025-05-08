@@ -10,14 +10,24 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  messageType: {
+    type: String,
+    enum: ['text', 'exercise', 'assessment', 'feedback', 'notification'],
+    default: 'text'
+  },
   content: {
     type: String,
     required: true
   },
+  richContent: {
+    title: String,
+    description: String,
+    metadata: Object
+  },
   attachments: [{
     type: {
       type: String,
-      enum: ['image', 'video', 'document', 'audio'],
+      enum: ['image', 'video', 'document', 'audio', 'exercise-data', 'assessment-report'],
       required: true
     },
     url: {
@@ -26,11 +36,41 @@ const messageSchema = new mongoose.Schema({
     },
     name: String,
     size: Number,
-    mimeType: String
+    mimeType: String,
+    thumbnail: String,
+    duration: Number,
+    preview: String
   }],
+  tags: [String],
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium'
+  },
   readBy: [{
     userId: String,
-    readAt: Date
+    readAt: Date,
+    deviceInfo: {
+      type: String,
+      platform: String,
+      browser: String
+    }
+  }],
+  reactions: [{
+    userId: String,
+    type: String,
+    createdAt: Date
+  }],
+  references: [{
+    type: {
+      type: String,
+      enum: ['exercise', 'assessment', 'video', 'conversation'],
+      required: true
+    },
+    id: {
+      type: String,
+      required: true
+    }
   }],
   isAIGenerated: {
     type: Boolean,

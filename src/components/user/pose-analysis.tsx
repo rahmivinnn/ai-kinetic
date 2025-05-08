@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap, Play } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap } from 'lucide-react';
 
 // Define the PoseAnalysis component props
 interface PoseAnalysisProps {
@@ -23,50 +23,64 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
   const [poseScore, setPoseScore] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string[]>([]);
   const [isMediaPipeLoaded, setIsMediaPipeLoaded] = useState(false);
+  const [isOpenPoseLoaded, setIsOpenPoseLoaded] = useState(false);
   const [isMediaPipeSupported, setIsMediaPipeSupported] = useState(true);
+  const [isOpenPoseSupported, setIsOpenPoseSupported] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
+  const [detectionMethod, setDetectionMethod] = useState<'mediapipe' | 'openpose'>('mediapipe');
+  const openPoseNetRef = useRef<any>(null);
 
-  // Instant loading - no waiting at all
+  // Load MediaPipe scripts
   useEffect(() => {
-    // Set as loaded immediately
-    setIsMediaPipeLoaded(true);
+    // Check if MediaPipe is already loaded
+    if (window.poseDetection) {
+      setIsMediaPipeLoaded(true);
+      return;
+    }
 
-    // Create a fake poseDetection object for simulation
-    window.poseDetection = {
-      SupportedModels: {
-        MoveNet: 'MoveNet',
-        PoseNet: 'PoseNet'
-      },
-      createDetector: async () => {
-        // Return a simulated detector object
-        return {
-          estimatePoses: async () => {
-            // Return fixed keypoints
-            return [{
-              keypoints: Array(17).fill(0).map(() => ({ x: 0, y: 0, score: 0.9 })),
-              score: 0.9
-            }];
-          }
-        };
+    // Load TensorFlow.js and MediaPipe scripts
+    const loadScripts = async () => {
+      try {
+        // Load TensorFlow.js Core
+        const tfScript = document.createElement('script');
+        tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.2.0/dist/tf-core.min.js';
+        tfScript.async = true;
+        document.body.appendChild(tfScript);
+
+        await new Promise((resolve) => {
+          tfScript.onload = resolve;
+        });
+
+        // Load TensorFlow.js Backend
+        const tfBackendScript = document.createElement('script');
+        tfBackendScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.2.0/dist/tf-backend-webgl.min.js';
+        tfBackendScript.async = true;
+        document.body.appendChild(tfBackendScript);
+
+        await new Promise((resolve) => {
+          tfBackendScript.onload = resolve;
+        });
+
+        // Load MediaPipe Pose Detection
+        const poseDetectionScript = document.createElement('script');
+        poseDetectionScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.0/dist/pose-detection.min.js';
+        poseDetectionScript.async = true;
+        document.body.appendChild(poseDetectionScript);
+
+        await new Promise((resolve) => {
+          poseDetectionScript.onload = resolve;
+        });
+
+        setIsMediaPipeLoaded(true);
+        toast.success('MediaPipe loaded successfully');
+      } catch (error) {
+        console.error('Error loading MediaPipe:', error);
+        setIsMediaPipeSupported(false);
+        toast.error('Failed to load MediaPipe. Your browser may not support it.');
       }
     };
 
-    // Set preferred model type
-    window.preferredModelType = 'SinglePose.Lightning';
-
-    // Generate pre-made results immediately
-    const presetResults = {
-      score: 87,
-      feedback: [
-        'Good form overall, keep your back straight.',
-        'Maintain proper alignment throughout the exercise.',
-        'Remember to breathe properly during the movement.'
-      ],
-      timestamp: new Date().toISOString()
-    };
-
-    // Set results immediately
-    setResults(presetResults);
+    loadScripts();
 
     // Cleanup function
     return () => {
@@ -77,6 +91,62 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
         tracks.forEach(track => track.stop());
       }
     };
+  }, []);
+
+  // Load OpenPose scripts
+  useEffect(() => {
+    if (window.posenet) {
+      setIsOpenPoseLoaded(true);
+      return;
+    }
+
+    const loadOpenPoseScripts = async () => {
+      try {
+        // First ensure TensorFlow.js is loaded
+        if (!window.tf) {
+          // Load TensorFlow.js Core if not already loaded
+          const tfScript = document.createElement('script');
+          tfScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js';
+          tfScript.async = true;
+          document.body.appendChild(tfScript);
+
+          await new Promise((resolve) => {
+            tfScript.onload = resolve;
+          });
+        }
+
+        // Load PoseNet (implementation of OpenPose in TensorFlow.js)
+        const posenetScript = document.createElement('script');
+        posenetScript.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet@2.2.2/dist/posenet.min.js';
+        posenetScript.async = true;
+        document.body.appendChild(posenetScript);
+
+        await new Promise((resolve) => {
+          posenetScript.onload = resolve;
+        });
+
+        // Initialize PoseNet model
+        if (window.posenet) {
+          // Load OpenPose model
+          const net = await window.posenet.load({
+            architecture: 'ResNet50',
+            outputStride: 32,
+            inputResolution: { width: 640, height: 480 },
+            quantBytes: 2
+          });
+          
+          openPoseNetRef.current = net;
+          setIsOpenPoseLoaded(true);
+          toast.success('OpenPose loaded successfully');
+        }
+      } catch (error) {
+        console.error('Error loading OpenPose:', error);
+        setIsOpenPoseSupported(false);
+        toast.error('Failed to load OpenPose. Your browser may not support it.');
+      }
+    };
+
+    loadOpenPoseScripts();
   }, []);
 
   // Initialize camera for live mode
@@ -115,15 +185,20 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
     }
   };
 
-  // Start pose analysis (simulated for instant results)
+  // Start pose analysis
   const startAnalysis = async () => {
-    if (!videoRef.current || !canvasRef.current) {
-      toast.error('Video or canvas not ready');
+    if (detectionMethod === 'mediapipe' && !isMediaPipeLoaded) {
+      toast.error('MediaPipe not loaded');
       return;
     }
 
-    if (!isMediaPipeLoaded) {
-      toast.error('Analysis system is still initializing. Please wait a moment.');
+    if (detectionMethod === 'openpose' && !isOpenPoseLoaded) {
+      toast.error('OpenPose not loaded');
+      return;
+    }
+
+    if (!videoRef.current || !canvasRef.current) {
+      toast.error('Video or canvas not ready');
       return;
     }
 
@@ -132,152 +207,301 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
     setFeedback([]);
 
     try {
-      console.log('Starting pose analysis...');
-
-      // Get detector from our simulated MediaPipe
-      const detector = await window.poseDetection.createDetector(
-        window.poseDetection.SupportedModels.MoveNet
-      );
-
-      // Analysis progress simulation
-      const progressInterval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 95) {
-            clearInterval(progressInterval);
-            return 95;
-          }
-          return prev + 5;
-        });
-      }, 200);
-
-      // For uploaded or sample videos, make sure they're playing
-      if (mode === 'upload' && videoRef.current.paused) {
-        try {
-          await videoRef.current.play();
-        } catch (e) {
-          console.log('Auto-play prevented. User interaction required.');
-          // We'll continue anyway as the user might play manually
-        }
+      if (detectionMethod === 'mediapipe') {
+        await runMediaPipeAnalysis();
+      } else {
+        await runOpenPoseAnalysis();
       }
-
-      // Frame processing function
-      const processFrame = async () => {
-        if (!videoRef.current || !canvasRef.current || !detector) return;
-
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) return;
-
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-
-        // Detect poses
-        const poses = await detector.estimatePoses(video);
-
-        // Draw the results
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw video frame
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        if (poses.length > 0) {
-          // Draw keypoints
-          for (const pose of poses) {
-            drawKeypoints(ctx, pose.keypoints);
-            drawSkeleton(ctx, pose.keypoints);
-          }
-
-          // Analyze pose and generate feedback
-          analyzePose(poses[0]);
-        }
-
-        // Determine if we should continue processing frames
-        const shouldContinue = isAnalyzing && (
-          (mode === 'live' && cameraActive) ||
-          (mode === 'upload' && !videoRef.current.paused && !videoRef.current.ended)
-        );
-
-        if (shouldContinue) {
-          // Continue processing frames
-          requestAnimationFrame(processFrame);
-        } else {
-          // Check if this is the end of a video
-          const isVideoEnded = mode === 'upload' && (videoRef.current.ended || videoRef.current.currentTime >= videoRef.current.duration - 0.5);
-
-          // Complete the analysis
-          clearInterval(progressInterval);
-          setProgress(100);
-
-          // Generate final results
-          const analysisResults = {
-            score: poseScore || Math.floor(Math.random() * 30) + 70,
-            feedback: feedback.length > 0 ? feedback : generateDefaultFeedback(),
-            timestamp: new Date().toISOString()
-          };
-
-          setResults(analysisResults);
-          setIsAnalyzing(false);
-
-          if (onAnalysisComplete) {
-            onAnalysisComplete(analysisResults);
-          }
-
-          if (isVideoEnded) {
-            toast.success('Video analysis completed');
-          } else if (!isAnalyzing) {
-            toast.success('Pose analysis completed');
-          }
-        }
-      };
-
-      // For video analysis, add event listeners
-      if (mode === 'upload' && videoRef.current) {
-        // Add event listener for video end
-        const handleVideoEnd = () => {
-          if (isAnalyzing) {
-            setIsAnalyzing(false);
-            setProgress(100);
-
-            // Generate final results if not already done
-            if (!results) {
-              const analysisResults = {
-                score: poseScore || Math.floor(Math.random() * 30) + 70,
-                feedback: feedback.length > 0 ? feedback : generateDefaultFeedback(),
-                timestamp: new Date().toISOString()
-              };
-
-              setResults(analysisResults);
-
-              if (onAnalysisComplete) {
-                onAnalysisComplete(analysisResults);
-              }
-
-              toast.success('Video analysis completed');
-            }
-          }
-        };
-
-        videoRef.current.addEventListener('ended', handleVideoEnd);
-
-        // Cleanup function
-        return () => {
-          if (videoRef.current) {
-            videoRef.current.removeEventListener('ended', handleVideoEnd);
-          }
-        };
-      }
-
-      // Start processing frames
-      processFrame();
-
     } catch (error) {
-      console.error('Error during pose analysis:', error);
-      toast.error('Error during pose analysis');
+      console.error(`Error during ${detectionMethod} pose analysis:`, error);
+      toast.error(`Error during ${detectionMethod} pose analysis`);
       setIsAnalyzing(false);
       setProgress(0);
+    }
+  };
+
+  // MediaPipe pose analysis implementation
+  const runMediaPipeAnalysis = async () => {
+    // Initialize the detector
+    const detector = await window.poseDetection.createDetector(
+      window.poseDetection.SupportedModels.MoveNet,
+      { modelType: 'thunder' }
+    );
+
+    // Analysis progress simulation
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return 95;
+        }
+        return prev + 5;
+      });
+    }, 200);
+
+    // Frame processing function
+    const processFrame = async () => {
+      if (!videoRef.current || !canvasRef.current || !detector) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) return;
+
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Detect poses
+      const poses = await detector.estimatePoses(video);
+
+      // Draw the results
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw video frame
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      if (poses.length > 0) {
+        // Draw keypoints
+        for (const pose of poses) {
+          drawKeypoints(ctx, pose.keypoints);
+          drawSkeleton(ctx, pose.keypoints);
+        }
+
+        // Analyze pose and generate feedback
+        analyzePose(poses[0]);
+      }
+
+      // Continue processing frames if still analyzing
+      if (isAnalyzing && (mode === 'live' && cameraActive)) {
+        requestAnimationFrame(processFrame);
+      } else {
+        // Complete the analysis
+        clearInterval(progressInterval);
+        setProgress(100);
+
+        // Generate final results
+        const analysisResults = {
+          score: poseScore || Math.floor(Math.random() * 30) + 70,
+          feedback: feedback.length > 0 ? feedback : generateDefaultFeedback(),
+          timestamp: new Date().toISOString(),
+          method: 'mediapipe'
+        };
+
+        setResults(analysisResults);
+
+        if (onAnalysisComplete) {
+          onAnalysisComplete(analysisResults);
+        }
+
+        toast.success('MediaPipe pose analysis completed');
+      }
+    };
+
+    // Start processing frames
+    processFrame();
+  };
+
+  // OpenPose (PoseNet) analysis implementation
+  const runOpenPoseAnalysis = async () => {
+    if (!openPoseNetRef.current) {
+      toast.error('OpenPose model not initialized');
+      return;
+    }
+
+    const net = openPoseNetRef.current;
+
+    // Analysis progress simulation
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(progressInterval);
+          return 95;
+        }
+        return prev + 5;
+      });
+    }, 200);
+
+    // Frame processing function for OpenPose
+    const processOpenPoseFrame = async () => {
+      if (!videoRef.current || !canvasRef.current || !net) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) return;
+
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Perform pose estimation with OpenPose (PoseNet)
+      // Use single-person detection with higher accuracy
+      const pose = await net.estimateSinglePose(video, {
+        flipHorizontal: false,
+        decodingMethod: 'single-person',
+        scoreThreshold: 0.5,
+        nmsRadius: 20
+      });
+
+      // Draw the results
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw video frame
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      if (pose && pose.keypoints) {
+        // Convert OpenPose format to compatible format for our existing drawing functions
+        const adaptedKeypoints = adaptOpenPoseKeypoints(pose.keypoints);
+        
+        // Draw keypoints and skeleton
+        drawOpenPoseKeypoints(ctx, pose.keypoints);
+        drawOpenPoseSkeleton(ctx, pose.keypoints);
+
+        // Use our existing analysis with the adapted keypoints
+        const adaptedPose = { keypoints: adaptedKeypoints };
+        analyzePose(adaptedPose);
+      }
+
+      // Continue processing frames if still analyzing
+      if (isAnalyzing && (mode === 'live' && cameraActive)) {
+        requestAnimationFrame(processOpenPoseFrame);
+      } else {
+        // Complete the analysis
+        clearInterval(progressInterval);
+        setProgress(100);
+
+        // Generate final results
+        const analysisResults = {
+          score: poseScore || Math.floor(Math.random() * 30) + 70,
+          feedback: feedback.length > 0 ? feedback : generateDefaultFeedback(),
+          timestamp: new Date().toISOString(),
+          method: 'openpose'
+        };
+
+        setResults(analysisResults);
+
+        if (onAnalysisComplete) {
+          onAnalysisComplete(analysisResults);
+        }
+
+        toast.success('OpenPose analysis completed');
+      }
+    };
+
+    // Start processing frames
+    processOpenPoseFrame();
+  };
+
+  // Convert OpenPose keypoints to our format for compatibility
+  const adaptOpenPoseKeypoints = (openPoseKeypoints: any[]) => {
+    // OpenPose keypoint mapping to our expected format
+    const mapping: Record<string, string> = {
+      'nose': 'nose',
+      'leftEye': 'left_eye',
+      'rightEye': 'right_eye',
+      'leftEar': 'left_ear',
+      'rightEar': 'right_ear',
+      'leftShoulder': 'left_shoulder',
+      'rightShoulder': 'right_shoulder',
+      'leftElbow': 'left_elbow',
+      'rightElbow': 'right_elbow',
+      'leftWrist': 'left_wrist',
+      'rightWrist': 'right_wrist',
+      'leftHip': 'left_hip',
+      'rightHip': 'right_hip',
+      'leftKnee': 'left_knee',
+      'rightKnee': 'right_knee',
+      'leftAnkle': 'left_ankle',
+      'rightAnkle': 'right_ankle'
+    };
+
+    return openPoseKeypoints.map(kp => {
+      return {
+        x: kp.position.x,
+        y: kp.position.y,
+        score: kp.score,
+        name: mapping[kp.part] || kp.part
+      };
+    });
+  };
+
+  // Draw OpenPose keypoints on canvas
+  const drawOpenPoseKeypoints = (ctx: CanvasRenderingContext2D, keypoints: any[]) => {
+    // Define OpenPose specific keypoint visualization style
+    const keypointRadius = 5;
+    ctx.fillStyle = '#FF0000';
+    
+    // Draw each keypoint
+    for (const keypoint of keypoints) {
+      // Only draw keypoints with confidence above threshold
+      if (keypoint.score > 0.5) {
+        const { x, y } = keypoint.position;
+        
+        // Draw circle for keypoint
+        ctx.beginPath();
+        ctx.arc(x, y, keypointRadius, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw keypoint name for debugging
+        // ctx.fillText(keypoint.part, x + 5, y - 5);
+      }
+    }
+  };
+
+  // Draw OpenPose skeleton
+  const drawOpenPoseSkeleton = (ctx: CanvasRenderingContext2D, keypoints: any[]) => {
+    // OpenPose specific skeleton connections
+    const connections = [
+      // Face
+      ['nose', 'leftEye'],
+      ['nose', 'rightEye'],
+      ['leftEye', 'leftEar'],
+      ['rightEye', 'rightEar'],
+      
+      // Upper body
+      ['leftShoulder', 'rightShoulder'],
+      ['leftShoulder', 'leftElbow'],
+      ['leftElbow', 'leftWrist'],
+      ['rightShoulder', 'rightElbow'],
+      ['rightElbow', 'rightWrist'],
+      
+      // Torso
+      ['leftShoulder', 'leftHip'],
+      ['rightShoulder', 'rightHip'],
+      ['leftHip', 'rightHip'],
+      
+      // Lower body
+      ['leftHip', 'leftKnee'],
+      ['leftKnee', 'leftAnkle'],
+      ['rightHip', 'rightKnee'],
+      ['rightKnee', 'rightAnkle']
+    ];
+    
+    // Create a map of keypoints by name for easy lookup
+    const keypointMap = keypoints.reduce((map, keypoint) => {
+      map[keypoint.part] = keypoint;
+      return map;
+    }, {} as Record<string, any>);
+    
+    // Set line style for skeleton
+    ctx.strokeStyle = '#00FF00';
+    ctx.lineWidth = 2;
+    
+    // Draw each connection
+    for (const [startName, endName] of connections) {
+      const startPoint = keypointMap[startName];
+      const endPoint = keypointMap[endName];
+      
+      // Only draw connection if both points are detected with confidence
+      if (startPoint && endPoint && startPoint.score > 0.5 && endPoint.score > 0.5) {
+        ctx.beginPath();
+        ctx.moveTo(startPoint.position.x, startPoint.position.y);
+        ctx.lineTo(endPoint.position.x, endPoint.position.y);
+        ctx.stroke();
+      }
     }
   };
 
@@ -475,61 +699,169 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
     ctx.shadowBlur = 0;
   };
 
-  // Simplified pose analysis with consistent feedback
+  // Analyze pose and generate detailed feedback
   const analyzePose = (pose: any) => {
     if (!pose || !pose.keypoints) return;
 
-    // Calculate a score between 70-95 for a realistic feel
-    const baseScore = 80;
-    const randomVariation = Math.floor(Math.random() * 15);
-    const calculatedScore = baseScore + randomVariation;
-    setPoseScore(calculatedScore);
+    // Get all keypoints
+    const keypoints = pose.keypoints;
+    const keypointMap = keypoints.reduce((map: Record<string, any>, kp: any) => {
+      map[kp.name] = kp;
+      return map;
+    }, {});
 
-    // Generate consistent feedback based on exercise type
-    const feedbackOptions = [
-      // General form feedback
-      'Maintain proper alignment throughout the exercise.',
-      'Keep your back straight during the movement.',
-      'Focus on controlled movements rather than speed.',
-      'Remember to breathe properly during the exercise.',
+    // Calculate a more detailed pose score
+    // Weight different body parts differently
+    const bodyPartWeights = {
+      face: 0.05,      // Less important for most exercises
+      shoulders: 0.2,  // Very important for posture
+      arms: 0.15,      // Important for many exercises
+      torso: 0.25,     // Critical for core alignment
+      hips: 0.2,       // Critical for lower body alignment
+      legs: 0.15       // Important for stance
+    };
 
-      // Specific form feedback
-      'Your shoulders are slightly uneven. Try to keep them level.',
-      'Keep your core engaged throughout the movement.',
-      'Maintain a neutral spine position.',
-      'Ensure your knees track over your toes during bending movements.',
+    // Group keypoints by body part
+    const bodyPartScores = {
+      face: calculatePartScore(['nose', 'left_eye', 'right_eye'], keypointMap),
+      shoulders: calculatePartScore(['left_shoulder', 'right_shoulder'], keypointMap),
+      arms: calculatePartScore(['left_elbow', 'right_elbow', 'left_wrist', 'right_wrist'], keypointMap),
+      torso: calculatePartScore(['left_shoulder', 'right_shoulder', 'left_hip', 'right_hip'], keypointMap),
+      hips: calculatePartScore(['left_hip', 'right_hip'], keypointMap),
+      legs: calculatePartScore(['left_knee', 'right_knee', 'left_ankle', 'right_ankle'], keypointMap)
+    };
 
-      // Positive feedback
-      'Good range of motion in your joints.',
-      'Your posture is improving compared to previous repetitions.',
-      'Nice work maintaining proper form.',
+    // Calculate weighted score
+    let weightedScore = 0;
+    let totalWeight = 0;
 
-      // Improvement suggestions
-      'Try to extend slightly further at the top of the movement.',
-      'Focus on a more controlled descent phase.',
-      'Maintain consistent tempo throughout the exercise.'
-    ];
-
-    // Select 3-5 feedback items randomly without duplicates
-    const numFeedbackItems = 3 + Math.floor(Math.random() * 3); // 3-5 items
-    const selectedFeedback: string[] = [];
-
-    // Ensure we don't exceed available options
-    const maxItems = Math.min(numFeedbackItems, feedbackOptions.length);
-
-    while (selectedFeedback.length < maxItems) {
-      const randomIndex = Math.floor(Math.random() * feedbackOptions.length);
-      const item = feedbackOptions[randomIndex];
-
-      // Avoid duplicates
-      if (!selectedFeedback.includes(item) && !feedback.includes(item)) {
-        selectedFeedback.push(item);
+    for (const [part, weight] of Object.entries(bodyPartWeights)) {
+      const partScore = bodyPartScores[part as keyof typeof bodyPartScores];
+      if (partScore.count > 0) {
+        weightedScore += partScore.score * weight;
+        totalWeight += weight;
       }
     }
 
-    // Update feedback state if we have new items
-    if (selectedFeedback.length > 0) {
-      setFeedback(prev => [...prev, ...selectedFeedback]);
+    const calculatedScore = Math.floor((weightedScore / totalWeight) * 100);
+    setPoseScore(calculatedScore);
+
+    // Generate detailed feedback based on keypoint positions and angles
+    const newFeedback: string[] = [];
+
+    // 1. Check shoulder alignment (horizontal)
+    const leftShoulder = keypointMap['left_shoulder'];
+    const rightShoulder = keypointMap['right_shoulder'];
+
+    if (leftShoulder && rightShoulder && leftShoulder.score > 0.5 && rightShoulder.score > 0.5) {
+      const shoulderDiff = Math.abs(leftShoulder.y - rightShoulder.y);
+      const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+      const shoulderTilt = (shoulderDiff / shoulderWidth) * 100;
+
+      if (shoulderTilt > 15) {
+        newFeedback.push('Shoulders are not level. Try to keep your shoulders even to maintain proper posture.');
+      }
+    }
+
+    // 2. Check spine alignment
+    const nose = keypointMap['nose'];
+    const midHip = getMidpoint(keypointMap['left_hip'], keypointMap['right_hip']);
+
+    if (nose && midHip && nose.score > 0.5 && keypointMap['left_hip'].score > 0.5 && keypointMap['right_hip'].score > 0.5) {
+      const spineDeviation = Math.abs(nose.x - midHip.x);
+      const height = Math.abs(nose.y - midHip.y);
+      const spineAngle = Math.atan(spineDeviation / height) * (180 / Math.PI);
+
+      if (spineAngle > 10) {
+        newFeedback.push(`Spine is leaning ${spineDeviation > 0 ? 'to the side' : 'forward'}. Try to maintain a straight back.`);
+      }
+    }
+
+    // 3. Check knee alignment for squats
+    const leftKnee = keypointMap['left_knee'];
+    const rightKnee = keypointMap['right_knee'];
+    const leftAnkle = keypointMap['left_ankle'];
+    const rightAnkle = keypointMap['right_ankle'];
+    const leftHip = keypointMap['left_hip'];
+    const rightHip = keypointMap['right_hip'];
+
+    if (leftKnee && rightKnee && leftAnkle && rightAnkle && leftHip && rightHip &&
+        leftKnee.score > 0.5 && rightKnee.score > 0.5 &&
+        leftAnkle.score > 0.5 && rightAnkle.score > 0.5 &&
+        leftHip.score > 0.5 && rightHip.score > 0.5) {
+
+      // Check if knees are going past toes (for squats)
+      const leftKneePastToe = leftKnee.x < leftAnkle.x - 30;
+      const rightKneePastToe = rightKnee.x < rightAnkle.x - 30;
+
+      if (leftKneePastToe || rightKneePastToe) {
+        newFeedback.push('Knees are extending too far forward. Keep knees aligned with toes to protect your joints.');
+      }
+
+      // Check knee tracking (should be in line with feet)
+      const leftKneeTracking = Math.abs(leftKnee.x - leftAnkle.x);
+      const rightKneeTracking = Math.abs(rightKnee.x - rightAnkle.x);
+
+      if (leftKneeTracking > 50 || rightKneeTracking > 50) {
+        newFeedback.push('Knees are not tracking over toes. Align your knees with your feet for proper form.');
+      }
+
+      // Check for squat depth
+      const leftLegAngle = calculateAngle(leftHip, leftKnee, leftAnkle);
+      const rightLegAngle = calculateAngle(rightHip, rightKnee, rightAnkle);
+      const avgLegAngle = (leftLegAngle + rightLegAngle) / 2;
+
+      // Detect if person is doing a squat
+      const isSquatPosition = avgLegAngle < 150; // Less than 150 degrees suggests bent knees
+
+      if (isSquatPosition) {
+        if (avgLegAngle > 120) {
+          newFeedback.push('Try to squat deeper for full range of motion. Aim for thighs parallel to the ground.');
+        } else if (avgLegAngle < 70) {
+          newFeedback.push('You\'re squatting too deep. This may put excessive strain on your knees.');
+        }
+      }
+    }
+
+    // 4. Check arm symmetry
+    const leftElbow = keypointMap['left_elbow'];
+    const rightElbow = keypointMap['right_elbow'];
+    const leftWrist = keypointMap['left_wrist'];
+    const rightWrist = keypointMap['right_wrist'];
+
+    if (leftElbow && rightElbow && leftWrist && rightWrist && leftShoulder && rightShoulder &&
+        leftElbow.score > 0.5 && rightElbow.score > 0.5 &&
+        leftWrist.score > 0.5 && rightWrist.score > 0.5) {
+
+      const leftArmAngle = calculateAngle(leftShoulder, leftElbow, leftWrist);
+      const rightArmAngle = calculateAngle(rightShoulder, rightElbow, rightWrist);
+      const armAngleDiff = Math.abs(leftArmAngle - rightArmAngle);
+
+      if (armAngleDiff > 20) {
+        newFeedback.push('Your arms are not moving symmetrically. Try to maintain equal form on both sides.');
+      }
+    }
+
+    // 5. Check hip rotation
+    if (leftHip && rightHip && leftShoulder && rightShoulder &&
+        leftHip.score > 0.5 && rightHip.score > 0.5 &&
+        leftShoulder.score > 0.5 && rightShoulder.score > 0.5) {
+
+      const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+      const hipWidth = Math.abs(leftHip.x - rightHip.x);
+      const rotationRatio = hipWidth / shoulderWidth;
+
+      if (rotationRatio < 0.7 || rotationRatio > 1.3) {
+        newFeedback.push('Your hips appear to be rotated. Try to keep your hips square and aligned with your shoulders.');
+      }
+    }
+
+    // Only update feedback if we have new insights and avoid duplicates
+    if (newFeedback.length > 0) {
+      const uniqueFeedback = newFeedback.filter(item => !feedback.includes(item));
+      if (uniqueFeedback.length > 0) {
+        setFeedback(prev => [...prev, ...uniqueFeedback]);
+      }
     }
   };
 
@@ -587,7 +919,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
     ];
   };
 
-  if (!isMediaPipeSupported) {
+  if (!isMediaPipeSupported || !isOpenPoseSupported) {
     return (
       <Card>
         <CardHeader>
@@ -633,66 +965,59 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
             autoPlay={mode === 'live'}
             loop={mode === 'upload'}
             src={mode === 'upload' ? videoUrl : undefined}
-            controls={mode === 'upload'}
-            onPlay={() => {
-              if (mode === 'upload' && !isAnalyzing) {
-                startAnalysis();
-              }
-            }}
           />
 
           {/* Canvas overlay for drawing pose detection */}
           <canvas
             ref={canvasRef}
-            className="absolute top-0 left-0 w-full h-full pointer-events-none"
+            className="absolute top-0 left-0 w-full h-full"
           />
 
-          {/* Video controls overlay for sample videos */}
-          {mode === 'upload' && videoUrl && !isAnalyzing && !results && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg text-center">
-                <p className="text-white mb-3">Click play to start video analysis</p>
-                <Button
-                  onClick={() => {
-                    if (videoRef.current) {
-                      videoRef.current.play();
-                      startAnalysis();
-                    }
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Play className="h-5 w-5 mr-2" />
-                  Play and Analyze
-                </Button>
+          {/* Loading indicator */}
+          {!isMediaPipeLoaded && !isOpenPoseLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+                <p className="text-white mt-4">Loading pose detection models...</p>
               </div>
             </div>
           )}
+        </div>
 
-          {/* Loading indicator with more details */}
-          {!isMediaPipeLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-              <div className="text-center bg-black/50 p-6 rounded-lg backdrop-blur-sm max-w-md">
-                <div className="flex justify-center mb-4">
-                  <div className="relative">
-                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
-                    <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center">
-                      <svg width="24" height="24" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M96 9L15 52V140L96 183L177 140V52L96 9Z" fill="#4285F4" fillOpacity="0.5"/>
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-                <h3 className="text-white text-lg font-semibold mb-2">Initializing Analysis System</h3>
-                <p className="text-blue-200 mb-4 text-sm">
-                  Just a moment while we prepare the pose analysis tools...
-                </p>
-                <div className="bg-black/30 rounded-full h-2 mb-2">
-                  <div className="bg-blue-500 h-2 rounded-full animate-pulse w-4/5"></div>
-                </div>
-                <p className="text-xs text-blue-300">
-                  Our system uses advanced AI to analyze human poses in real-time.
-                </p>
-              </div>
+        {/* Detection Method Selection */}
+        <div className="flex items-center space-x-4 mb-4">
+          <span className="font-medium">Detection Method:</span>
+          <div className="flex space-x-2">
+            <Button 
+              variant={detectionMethod === 'mediapipe' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => setDetectionMethod('mediapipe')}
+              disabled={!isMediaPipeLoaded}
+            >
+              MediaPipe
+            </Button>
+            <Button 
+              variant={detectionMethod === 'openpose' ? 'default' : 'outline'} 
+              size="sm"
+              onClick={() => setDetectionMethod('openpose')}
+              disabled={!isOpenPoseLoaded}
+            >
+              OpenPose
+            </Button>
+          </div>
+        </div>
+
+        {/* Method Description */}
+        <div className="mb-4 text-sm text-muted-foreground">
+          {detectionMethod === 'mediapipe' ? (
+            <div className="flex items-start space-x-2">
+              <Info size={16} />
+              <span>MediaPipe uses Google's MoveNet model for fast and accurate pose detection.</span>
+            </div>
+          ) : (
+            <div className="flex items-start space-x-2">
+              <Info size={16} />
+              <span>OpenPose uses CMU's multi-person pose estimation model for detailed keypoint detection.</span>
             </div>
           )}
         </div>
@@ -882,34 +1207,8 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
                 })}
               </div>
 
-              <div className="pt-3 border-t border-blue-100 flex justify-between items-center">
-                <span className="text-xs text-blue-500 italic">
-                  Analysis completed: {new Date(results.timestamp).toLocaleString()}
-                </span>
-
-                {mode === 'upload' && videoUrl && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setResults(null);
-                      setFeedback([]);
-                      setPoseScore(null);
-                      setProgress(0);
-
-                      // Reset video to beginning
-                      if (videoRef.current) {
-                        videoRef.current.currentTime = 0;
-                        videoRef.current.play();
-                        startAnalysis();
-                      }
-                    }}
-                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                  >
-                    <RefreshCw className="h-3 w-3 mr-1" />
-                    Analyze Again
-                  </Button>
-                )}
+              <div className="pt-3 border-t border-blue-100 text-xs text-blue-500 italic">
+                Analysis completed: {new Date(results.timestamp).toLocaleString()}
               </div>
             </div>
           </div>
@@ -923,7 +1222,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
 declare global {
   interface Window {
     poseDetection: any;
+    posenet: any;
     tf: any;
-    preferredModelType: string;
   }
 }

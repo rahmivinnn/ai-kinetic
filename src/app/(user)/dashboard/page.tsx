@@ -6,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoUploadForm } from "@/components/user/video-upload";
 import { ExercisePlan } from "@/components/user/exercise-plan";
 import { VideoAnalysis } from "@/components/user/video-analysis";
-import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw, Camera } from "lucide-react";
+import { PersonalizedExercisePlan } from "@/components/user/personalized-exercise-plan";
+import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw, Camera, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import Image from "next/image";
@@ -439,7 +440,7 @@ const UserHome = () => {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => {
                 setActiveTab('exercise-plan');
                 document.getElementById('exercise-plan')?.scrollIntoView({ behavior: 'smooth' });
@@ -447,10 +448,17 @@ const UserHome = () => {
                 <Activity className="h-4 w-4 mr-2" />
                 Continue
               </Button>
-              <Button variant="outline" className="w-full" asChild>
+              <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => {
+                setActiveTab('ai-plan');
+                document.getElementById('ai-plan')?.scrollIntoView({ behavior: 'smooth' });
+              }}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Plan
+              </Button>
+              <Button variant="outline" className="w-full col-span-2" asChild>
                 <Link href="/exercise-categories">
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  View All
+                  View All Exercises
                 </Link>
               </Button>
             </div>
@@ -592,6 +600,11 @@ const UserHome = () => {
               description: "Track your progress by marking exercises as completed.",
               duration: 3000
             });
+          } else if (value === "ai-plan") {
+            toast.info("Generate a personalized exercise plan", {
+              description: "Our AI will create a tailored 7-day plan based on your needs.",
+              duration: 3000
+            });
           } else if (value === "upload-video") {
             toast.info("Upload a new exercise video", {
               description: "Our AI will analyze your form and provide feedback.",
@@ -605,7 +618,7 @@ const UserHome = () => {
           }
         }}
       >
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger
             value="exercise-plan"
             id="exercise-plan"
@@ -613,6 +626,13 @@ const UserHome = () => {
           >
             <Activity className="h-4 w-4 mr-2" />
             Exercise Plan
+          </TabsTrigger>
+          <TabsTrigger
+            value="ai-plan"
+            className="transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            AI Plan Generator
           </TabsTrigger>
           <TabsTrigger
             value="upload-video"
@@ -632,6 +652,10 @@ const UserHome = () => {
 
         <TabsContent value="exercise-plan" className="mt-0">
           <ExercisePlan />
+        </TabsContent>
+
+        <TabsContent value="ai-plan" className="mt-0">
+          <PersonalizedExercisePlan />
         </TabsContent>
 
         <TabsContent value="upload-video" className="mt-0">
