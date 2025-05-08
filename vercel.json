@@ -1,31 +1,8 @@
 {
-  "version": 2,
-  "buildCommand": "bash ./build.sh",
-  "outputDirectory": ".next",
-  "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "regions": ["sin1"],
   "env": {
     "NEXT_PUBLIC_API_URL": "https://ai-kinetic-backend.vercel.app/api",
     "NEXT_PUBLIC_USE_MOCK_DATA": "true"
-  },
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        }
-      ]
-    }
-  ]
+  }
 }
