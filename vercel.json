@@ -4,7 +4,7 @@
   "outputDirectory": ".next",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
-  "regions": ["all"],
+  "regions": ["sin1"],
   "env": {
     "NEXT_PUBLIC_API_URL": "https://ai-kinetic-backend.vercel.app/api",
     "NEXT_PUBLIC_USE_MOCK_DATA": "true"
