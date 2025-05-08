@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/server.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "development",
+    "PORT": "5000",
+    "JWT_SECRET": "5394102a-d3f6-43ad-8ebf-4a8f55f709f4",
+    "JWT_EXPIRES_IN": "7d",
+    "JWT_REFRESH_SECRET": "5394102a-d3f6-43ad-8ebf-4a8f55f709f4-refresh",
+    "JWT_REFRESH_EXPIRES_IN": "30d"
+  }
+}
