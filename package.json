@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "netlify-build": "echo '@tailwind base;' > src/app/globals.css.tmp && echo '@tailwind components;' >> src/app/globals.css.tmp && echo '@tailwind utilities;' >> src/app/globals.css.tmp && cat src/app/globals.css | tail -n +4 >> src/app/globals.css.tmp && mv src/app/globals.css.tmp src/app/globals.css && next build"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
