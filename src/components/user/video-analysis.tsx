@@ -230,11 +230,68 @@ export function VideoAnalysis({ videoId }: VideoAnalysisProps) {
     );
   }
 
+  // MediaPipe pose estimation
+  const [showPoseEstimation, setShowPoseEstimation] = useState(false);
+  const [posePoints, setPosePoints] = useState<any[]>([]);
+  const [poseConfidence, setPoseConfidence] = useState(0);
+  const [showPoseLines, setShowPoseLines] = useState(true);
+  const [poseColor, setPoseColor] = useState('#00ff00');
+
+  // Toggle pose estimation visualization
+  const togglePoseEstimation = () => {
+    setShowPoseEstimation(!showPoseEstimation);
+    if (!showPoseEstimation) {
+      // Simulate pose detection with random points
+      const newPoints = Array.from({ length: 33 }).map(() => ({
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        z: Math.random() * 10 - 5,
+        visibility: Math.random() * 0.5 + 0.5
+      }));
+      setPosePoints(newPoints);
+      setPoseConfidence(Math.random() * 0.3 + 0.7);
+
+      toast.success("Pose estimation activated!", {
+        icon: <Sparkles className="h-5 w-5 text-yellow-500" />
+      });
+
+      // Show achievement
+      setTimeout(() => {
+        setAchievementMessage("Motion Analysis Pro! 🔍");
+        setShowAchievement(true);
+        setTimeout(() => setShowAchievement(false), 4000);
+      }, 2000);
+    }
+  };
+
+  // Change pose visualization color
+  const changePoseColor = () => {
+    const colors = ['#00ff00', '#ff0000', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+    const currentIndex = colors.indexOf(poseColor);
+    const nextIndex = (currentIndex + 1) % colors.length;
+    setPoseColor(colors[nextIndex]);
+  };
+
   // Interactive video functions
   const togglePlay = () => {
     setIsPlaying(!isPlaying);
     if (!isPlaying) {
       showRandomInsight();
+
+      // Simulate pose detection when video plays
+      if (showPoseEstimation) {
+        const interval = setInterval(() => {
+          const newPoints = Array.from({ length: 33 }).map(() => ({
+            x: Math.random() * 100,
+            y: Math.random() * 100,
+            z: Math.random() * 10 - 5,
+            visibility: Math.random() * 0.5 + 0.5
+          }));
+          setPosePoints(newPoints);
+        }, 500);
+
+        return () => clearInterval(interval);
+      }
     }
   };
 
@@ -468,6 +525,33 @@ export function VideoAnalysis({ videoId }: VideoAnalysisProps) {
               </div>
             )}
 
+            {/* Pose estimation overlay */}
+            {showPoseEstimation && (
+              <div className="absolute inset-0 z-10 pointer-events-none">
+                {/* Pose points */}
+                {posePoints.map((point, index) => (
+                  <div
+                    key={index}
+                    className="absolute w-2 h-2 rounded-full"
+                    style={{
+                      left: `${point.x}%`,
+                      top: `${point.y}%`,
+                      backgroundColor: poseColor,
+                      opacity: point.visibility,
+                      transform: 'translate(-50%, -50%)',
+                      boxShadow: `0 0 5px ${poseColor}`
+                    }}
+                  />
+                ))}
+
+                {/* Pose confidence indicator */}
+                <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-1.5 text-white text-sm flex items-center">
+                  <Sparkles className="h-4 w-4 mr-2 text-yellow-400" />
+                  Confidence: {Math.round(poseConfidence * 100)}%
+                </div>
+              </div>
+            )}
+
             {/* Video thumbnail with play button */}
             <div
               className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isPlaying ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
@@ -549,6 +633,29 @@ export function VideoAnalysis({ videoId }: VideoAnalysisProps) {
                   <div className="text-white text-sm">
                     {formatVideoTime(currentTime)} / {formatVideoTime(duration)}
                   </div>
+
+                  {/* Pose estimation toggle button */}
+                  <button
+                    className={`p-1.5 rounded-full transition-colors ${showPoseEstimation
+                      ? 'bg-green-500/30 hover:bg-green-500/50'
+                      : 'bg-white/10 hover:bg-white/20'}`}
+                    onClick={togglePoseEstimation}
+                    title="Toggle pose estimation"
+                  >
+                    <Activity className={`h-5 w-5 ${showPoseEstimation ? 'text-green-300' : 'text-white'}`} />
+                  </button>
+
+                  {/* Pose color change button (only visible when pose estimation is active) */}
+                  {showPoseEstimation && (
+                    <button
+                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                      onClick={changePoseColor}
+                      title="Change pose color"
+                      style={{ color: poseColor }}
+                    >
+                      <Sparkles className="h-5 w-5" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3">
