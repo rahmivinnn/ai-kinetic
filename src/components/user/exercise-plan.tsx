@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { exerciseAPI } from '@/lib/api';
 import { toast } from 'sonner';
-import { Play, Calendar, Upload, CheckCircle, Clock } from 'lucide-react';
+import { Play, Calendar, Upload, CheckCircle, Clock, Pause, X, Activity } from 'lucide-react';
 
 interface Exercise {
   id: string;
@@ -34,6 +34,34 @@ export function ExercisePlan() {
   const [loading, setLoading] = useState(true);
   const [completedExercises, setCompletedExercises] = useState<Record<string, boolean>>({});
   const [progress, setProgress] = useState(0);
+  const [activeExercise, setActiveExercise] = useState<Exercise | null>(null);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [timerActive, setTimerActive] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [currentSet, setCurrentSet] = useState(1);
+  const [currentRep, setCurrentRep] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [streakCount, setStreakCount] = useState(() => {
+    const saved = localStorage.getItem('exerciseStreak');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // Define toggleExerciseCompletion using useCallback before it's used in effects
+  const toggleExerciseCompletion = useCallback((exerciseId: string) => {
+    const newCompletedExercises = {
+      ...completedExercises,
+      [exerciseId]: !completedExercises[exerciseId]
+    };
+
+    setCompletedExercises(newCompletedExercises);
+
+    // Save to localStorage
+    localStorage.setItem('completedExercises', JSON.stringify(newCompletedExercises));
+
+    // Update progress
+    const completedCount = Object.values(newCompletedExercises).filter(Boolean).length;
+    setProgress(exercises.length > 0 ? (completedCount / exercises.length) * 100 : 0);
+  }, [completedExercises, exercises.length]);
 
   useEffect(() => {
     const fetchExercises = async () => {
@@ -74,81 +102,6 @@ export function ExercisePlan() {
 
     fetchExercises();
   }, []);
-
-  const toggleExerciseCompletion = (exerciseId: string) => {
-    const newCompletedExercises = {
-      ...completedExercises,
-      [exerciseId]: !completedExercises[exerciseId]
-    };
-
-    setCompletedExercises(newCompletedExercises);
-
-    // Save to localStorage
-    localStorage.setItem('completedExercises', JSON.stringify(newCompletedExercises));
-
-    // Update progress
-    const completedCount = Object.values(newCompletedExercises).filter(Boolean).length;
-    setProgress(exercises.length > 0 ? (completedCount / exercises.length) * 100 : 0);
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
-      case 'beginner':
-        return 'bg-green-500/10 text-green-500 border-green-500/20';
-      case 'intermediate':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-      case 'advanced':
-        return 'bg-red-500/10 text-red-500 border-red-500/20';
-      default:
-        return 'bg-muted text-muted-foreground';
-    }
-  };
-
-  if (loading) {
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Loading Exercise Plan</CardTitle>
-          <CardDescription>Please wait while we load your personalized exercise plan</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center py-8">
-          <div className="animate-pulse flex flex-col items-center">
-            <div className="h-32 w-32 bg-muted rounded-full mb-4"></div>
-            <div className="h-4 w-48 bg-muted rounded mb-2"></div>
-            <div className="h-4 w-32 bg-muted rounded"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (exercises.length === 0) {
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>No Exercise Plan Found</CardTitle>
-          <CardDescription>You don't have any exercises assigned yet</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center py-8">
-          <Calendar className="h-16 w-16 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground mb-4">Your physiotherapist will create a personalized exercise plan for you soon</p>
-          <Button>Schedule Appointment</Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const [activeExercise, setActiveExercise] = useState<Exercise | null>(null);
-  const [showInstructions, setShowInstructions] = useState(false);
-  const [timerActive, setTimerActive] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [currentSet, setCurrentSet] = useState(1);
-  const [currentRep, setCurrentRep] = useState(0);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [streakCount, setStreakCount] = useState(() => {
-    const saved = localStorage.getItem('exerciseStreak');
-    return saved ? parseInt(saved, 10) : 0;
-  });
 
   useEffect(() => {
     // Check if user completed exercises yesterday
@@ -235,7 +188,54 @@ export function ExercisePlan() {
     }
 
     return () => clearInterval(interval);
-  }, [timerActive, activeExercise]);
+  }, [timerActive, activeExercise, toggleExerciseCompletion]);
+
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty.toLowerCase()) {
+      case 'beginner':
+        return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'intermediate':
+        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 'advanced':
+        return 'bg-red-500/10 text-red-500 border-red-500/20';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Loading Exercise Plan</CardTitle>
+          <CardDescription>Please wait while we load your personalized exercise plan</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center py-8">
+          <div className="animate-pulse flex flex-col items-center">
+            <div className="h-32 w-32 bg-muted rounded-full mb-4"></div>
+            <div className="h-4 w-48 bg-muted rounded mb-2"></div>
+            <div className="h-4 w-32 bg-muted rounded"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (exercises.length === 0) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>No Exercise Plan Found</CardTitle>
+          <CardDescription>You don't have any exercises assigned yet</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center py-8">
+          <Calendar className="h-16 w-16 text-muted-foreground mb-4" />
+          <p className="text-muted-foreground mb-4">Your physiotherapist will create a personalized exercise plan for you soon</p>
+          <Button>Schedule Appointment</Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const startExercise = (exercise: Exercise) => {
     setActiveExercise(exercise);
@@ -269,59 +269,104 @@ export function ExercisePlan() {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
+    <div className="w-full">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-6 mb-6 text-white shadow-lg">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle>Your Exercise Plan</CardTitle>
-            <CardDescription>
+            <h2 className="text-2xl font-bold">Your Exercise Plan</h2>
+            <p className="text-blue-100 mt-1">
               Personalized exercises for your recovery journey
-            </CardDescription>
+            </p>
+
+            <div className="mt-4 flex items-center gap-3">
+              <div className="bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2">
+                <div className="text-xs text-blue-100">Daily Progress</div>
+                <div className="text-xl font-bold">{Math.round(progress)}%</div>
+              </div>
+
+              {streakCount > 0 && (
+                <div className="bg-white/20 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center">
+                  <div className="mr-2 text-2xl">🔥</div>
+                  <div>
+                    <div className="text-xs text-blue-100">Current Streak</div>
+                    <div className="text-xl font-bold">{streakCount} days</div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            {streakCount > 0 && (
-              <Badge variant="outline" className="flex items-center bg-orange-500/10 text-orange-500 border-orange-500/20">
-                <span className="mr-1">🔥</span>
-                {streakCount} day streak
-              </Badge>
-            )}
-            <Badge variant="outline" className="flex items-center">
-              <Clock className="h-3 w-3 mr-1" />
-              Updated {new Date().toLocaleDateString()}
-            </Badge>
+
+          <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
+            <div className="relative h-16 w-16">
+              <svg viewBox="0 0 100 100" className="h-full w-full">
+                <circle
+                  cx="50" cy="50" r="45"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="50" cy="50" r="45"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="8"
+                  strokeDasharray={`${progress * 2.83} 283`}
+                  strokeDashoffset="0"
+                  transform="rotate(-90 50 50)"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center text-xl font-bold">
+                {Math.round(progress)}%
+              </div>
+            </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
+
+        <div className="mt-4 w-full bg-white/20 rounded-full h-2 overflow-hidden">
+          <div
+            className="h-full bg-white rounded-full transition-all duration-1000 ease-in-out"
+            style={{ width: `${progress}%` }}
+          ></div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
         {/* Active Exercise Modal */}
         {activeExercise && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-lg">
-              <CardHeader>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-3xl bg-white rounded-2xl overflow-hidden shadow-2xl">
+              {/* Header with gradient background */}
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
                 <div className="flex justify-between items-center">
-                  <CardTitle>{activeExercise.name}</CardTitle>
-                  <Badge className={getDifficultyColor(activeExercise.difficulty)}>
+                  <div>
+                    <h2 className="text-2xl font-bold">{activeExercise.name}</h2>
+                    <p className="text-blue-100 mt-1">{activeExercise.description}</p>
+                  </div>
+                  <Badge className={`${getDifficultyColor(activeExercise.difficulty)} px-3 py-1.5`}>
                     {activeExercise.difficulty}
                   </Badge>
                 </div>
-                <CardDescription>{activeExercise.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              </div>
+
+              <div className="p-6">
                 {showInstructions ? (
-                  <div className="space-y-4">
-                    <h3 className="font-medium">Instructions:</h3>
-                    <p className="text-sm whitespace-pre-line">{activeExercise.instructions}</p>
+                  <div className="space-y-6">
+                    <div className="bg-blue-50 p-5 rounded-xl border border-blue-100">
+                      <h3 className="text-lg font-semibold text-blue-800 mb-3">Instructions:</h3>
+                      <div className="text-blue-700 whitespace-pre-line">{activeExercise.instructions}</div>
+                    </div>
                     <Button
                       variant="outline"
-                      className="w-full"
+                      className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
                       onClick={() => setShowInstructions(false)}
                     >
                       Back to Exercise
                     </Button>
                   </div>
                 ) : (
-                  <>
-                    <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                  <div className="space-y-6">
+                    {/* Video section */}
+                    <div className="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl flex items-center justify-center overflow-hidden shadow-lg">
                       {activeExercise.demoVideoUrl ? (
                         <iframe
                           src={activeExercise.demoVideoUrl.replace('watch?v=', 'embed/')}
@@ -330,53 +375,105 @@ export function ExercisePlan() {
                         ></iframe>
                       ) : (
                         <div className="flex flex-col items-center justify-center">
-                          <Calendar className="h-16 w-16 text-primary mb-2" />
-                          <p className="text-muted-foreground">No demo video available</p>
+                          <div className="text-white/20 text-9xl font-bold select-none">
+                            {activeExercise.name.charAt(0)}
+                          </div>
+                          <p className="text-white/60 mt-4">No demo video available</p>
                         </div>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="bg-primary/10 rounded-lg p-3">
-                        <p className="text-sm text-muted-foreground">Set</p>
-                        <p className="text-2xl font-bold">{currentSet}/{activeExercise.sets}</p>
+                    {/* Exercise progress */}
+                    <div className="bg-blue-50 p-5 rounded-xl border border-blue-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-blue-800">Exercise Progress</h3>
+                        <div className="text-2xl font-bold text-blue-700">{formatTime(timerSeconds)}</div>
                       </div>
-                      <div className="bg-primary/10 rounded-lg p-3">
-                        <p className="text-sm text-muted-foreground">Rep</p>
-                        <p className="text-2xl font-bold">{currentRep}/{activeExercise.reps}</p>
+
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="relative">
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm text-blue-700">Sets</span>
+                            <span className="text-sm font-medium text-blue-800">{currentSet}/{activeExercise.sets}</span>
+                          </div>
+                          <div className="h-3 bg-blue-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300"
+                              style={{ width: `${(currentSet / activeExercise.sets) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm text-blue-700">Reps</span>
+                            <span className="text-sm font-medium text-blue-800">{currentRep}/{activeExercise.reps}</span>
+                          </div>
+                          <div className="h-3 bg-blue-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300"
+                              style={{ width: `${(currentRep / activeExercise.reps) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="bg-primary/10 rounded-lg p-3">
-                        <p className="text-sm text-muted-foreground">Time</p>
-                        <p className="text-2xl font-bold">{formatTime(timerSeconds)}</p>
+
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <div className="text-3xl font-bold text-blue-700">{currentSet}</div>
+                          <div className="text-xs text-blue-600 mt-1">CURRENT SET</div>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <div className="text-3xl font-bold text-blue-700">{currentRep}</div>
+                          <div className="text-xs text-blue-600 mt-1">CURRENT REP</div>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <div className="text-3xl font-bold text-blue-700">{formatTime(timerSeconds)}</div>
+                          <div className="text-xs text-blue-600 mt-1">ELAPSED TIME</div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    {/* Control buttons */}
+                    <div className="flex gap-4">
                       {timerActive ? (
-                        <Button variant="outline" className="flex-1" onClick={pauseExercise}>
-                          Pause
+                        <Button
+                          variant="outline"
+                          className="flex-1 h-14 text-lg border-blue-200 text-blue-700 hover:bg-blue-50"
+                          onClick={pauseExercise}
+                        >
+                          <Pause className="h-6 w-6 mr-2" />
+                          Pause Exercise
                         </Button>
                       ) : (
-                        <Button className="flex-1" onClick={resumeExercise}>
-                          Resume
+                        <Button
+                          className="flex-1 h-14 text-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white border-none"
+                          onClick={resumeExercise}
+                        >
+                          <Play className="h-6 w-6 mr-2" />
+                          Resume Exercise
                         </Button>
                       )}
-                      <Button variant="destructive" onClick={stopExercise}>
-                        Stop
+                      <Button
+                        variant="destructive"
+                        className="h-14 px-6"
+                        onClick={stopExercise}
+                      >
+                        <X className="h-6 w-6" />
                       </Button>
                     </div>
 
                     <Button
                       variant="ghost"
-                      className="w-full"
+                      className="w-full text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                       onClick={() => setShowInstructions(true)}
                     >
-                      View Instructions
+                      View Detailed Instructions
                     </Button>
-                  </>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         )}
 
@@ -413,14 +510,14 @@ export function ExercisePlan() {
           <Progress value={progress} className="h-2" />
         </div>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {exercises.map((exercise: Exercise, index: number) => (
             <div
               key={exercise.id}
-              className={`border rounded-lg overflow-hidden transition-all duration-300 transform hover:shadow-md ${
+              className={`rounded-xl overflow-hidden transition-all duration-300 transform hover:shadow-xl ${
                 completedExercises[exercise.id]
-                  ? 'bg-muted/50 border-primary/20'
-                  : 'hover:border-primary/30'
+                  ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100'
+                  : 'bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 hover:border-blue-300'
               }`}
               style={{
                 opacity: loading ? 0 : 1,
@@ -428,96 +525,141 @@ export function ExercisePlan() {
                 transition: `all 0.3s ease-in-out ${exercise.animationDelay || 0}ms`
               }}
             >
-              <div className="flex items-start p-4">
-                <div className="flex-shrink-0 mr-4">
+              <div className="relative">
+                {/* Exercise thumbnail/video preview */}
+                <div className="h-48 bg-gradient-to-br from-gray-900 to-gray-800 relative overflow-hidden">
                   {exercise.thumbnailUrl ? (
                     <img
                       src={exercise.thumbnailUrl}
                       alt={exercise.name}
-                      className="w-20 h-20 object-cover rounded-md cursor-pointer"
-                      onClick={() => startExercise(exercise)}
+                      className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div
-                      className="w-20 h-20 bg-primary/10 rounded-md flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-colors"
-                      onClick={() => startExercise(exercise)}
-                    >
-                      <Play className="h-8 w-8 text-primary" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-white/20 text-9xl font-bold select-none">
+                        {exercise.name.charAt(0)}
+                      </div>
                     </div>
                   )}
-                </div>
 
-                <div className="flex-grow">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-medium">{exercise.name}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{exercise.description}</p>
+                  {/* Play button overlay */}
+                  <div
+                    className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors cursor-pointer"
+                    onClick={() => startExercise(exercise)}
+                  >
+                    <div className="bg-white/20 backdrop-blur-sm p-4 rounded-full">
+                      <Play className="h-10 w-10 text-white" />
                     </div>
-                    <Badge className={getDifficultyColor(exercise.difficulty)}>
+                  </div>
+
+                  {/* Difficulty badge */}
+                  <div className="absolute top-3 right-3">
+                    <Badge className={`${getDifficultyColor(exercise.difficulty)} px-3 py-1 text-xs font-medium`}>
                       {exercise.difficulty}
                     </Badge>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge variant="outline" className="text-xs">
-                      {exercise.sets} sets
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {exercise.reps} reps
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
+                  {/* Completed badge */}
+                  {completedExercises[exercise.id] && (
+                    <div className="absolute top-3 left-3">
+                      <div className="bg-green-500 text-white rounded-full p-1">
+                        <CheckCircle className="h-5 w-5" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Exercise details */}
+                <div className="p-5">
+                  <h3 className={`text-lg font-semibold ${completedExercises[exercise.id] ? 'text-green-800' : 'text-blue-800'}`}>
+                    {exercise.name}
+                  </h3>
+                  <p className={`text-sm mt-1 ${completedExercises[exercise.id] ? 'text-green-700' : 'text-blue-700'}`}>
+                    {exercise.description}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2 mt-4">
+                    <div className={`p-3 rounded-lg ${completedExercises[exercise.id] ? 'bg-green-100/50' : 'bg-blue-100/50'}`}>
+                      <div className={`text-xs ${completedExercises[exercise.id] ? 'text-green-700' : 'text-blue-700'}`}>Sets</div>
+                      <div className={`text-xl font-bold ${completedExercises[exercise.id] ? 'text-green-800' : 'text-blue-800'}`}>
+                        {exercise.sets}
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded-lg ${completedExercises[exercise.id] ? 'bg-green-100/50' : 'bg-blue-100/50'}`}>
+                      <div className={`text-xs ${completedExercises[exercise.id] ? 'text-green-700' : 'text-blue-700'}`}>Reps</div>
+                      <div className={`text-xl font-bold ${completedExercises[exercise.id] ? 'text-green-800' : 'text-blue-800'}`}>
+                        {exercise.reps}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <Badge variant="outline" className={`text-xs ${completedExercises[exercise.id] ? 'border-green-200 text-green-700' : 'border-blue-200 text-blue-700'}`}>
                       {exercise.frequency}
                     </Badge>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className={`text-xs ${completedExercises[exercise.id] ? 'border-green-200 text-green-700' : 'border-blue-200 text-blue-700'}`}>
                       {exercise.targetArea}
                     </Badge>
                   </div>
                 </div>
-              </div>
 
-              <div className="border-t px-4 py-3 flex justify-between items-center bg-muted/30">
-                <div className="flex items-center">
-                  <Checkbox
-                    id={`complete-${exercise.id}`}
-                    checked={!!completedExercises[exercise.id]}
-                    onCheckedChange={() => {
-                      toggleExerciseCompletion(exercise.id);
-                      if (!completedExercises[exercise.id]) {
-                        setShowConfetti(true);
-                        setTimeout(() => setShowConfetti(false), 3000);
-                        toast.success(`Great job completing ${exercise.name}!`);
+                {/* Action buttons */}
+                <div className={`px-5 py-4 flex justify-between items-center ${completedExercises[exercise.id] ? 'bg-green-100/30' : 'bg-blue-100/30'} border-t ${completedExercises[exercise.id] ? 'border-green-100' : 'border-blue-100'}`}>
+                  <div className="flex items-center">
+                    <Checkbox
+                      id={`complete-${exercise.id}`}
+                      checked={!!completedExercises[exercise.id]}
+                      className={completedExercises[exercise.id] ? 'text-green-500 border-green-500' : ''}
+                      onCheckedChange={() => {
+                        toggleExerciseCompletion(exercise.id);
+                        if (!completedExercises[exercise.id]) {
+                          setShowConfetti(true);
+                          setTimeout(() => setShowConfetti(false), 3000);
+                          toast.success(`Great job completing ${exercise.name}!`);
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor={`complete-${exercise.id}`}
+                      className={`ml-2 text-sm font-medium cursor-pointer ${completedExercises[exercise.id] ? 'text-green-700' : 'text-blue-700'}`}
+                    >
+                      {completedExercises[exercise.id] ? 'Completed' : 'Mark as completed'}
+                    </label>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => startExercise(exercise)}
+                      className={completedExercises[exercise.id]
+                        ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-none"
+                        : "bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white border-none"
                       }
-                    }}
-                  />
-                  <label
-                    htmlFor={`complete-${exercise.id}`}
-                    className="ml-2 text-sm font-medium cursor-pointer"
-                  >
-                    {completedExercises[exercise.id] ? 'Completed' : 'Mark as completed'}
-                  </label>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => startExercise(exercise)}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    Start Exercise
-                  </Button>
-                  <Button size="sm" onClick={() => {
-                    toast.info(`Upload a video for ${exercise.name}`);
-                    // Navigate to upload tab with pre-selected exercise
-                    const uploadTab = document.querySelector('[value="upload-video"]');
-                    if (uploadTab) {
-                      (uploadTab as HTMLElement).click();
-                    }
-                  }}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Video
-                  </Button>
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Start
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={completedExercises[exercise.id]
+                        ? "border-green-200 text-green-700 hover:bg-green-50"
+                        : "border-blue-200 text-blue-700 hover:bg-blue-50"
+                      }
+                      onClick={() => {
+                        toast.info(`Upload a video for ${exercise.name}`);
+                        // Navigate to upload tab with pre-selected exercise
+                        const uploadTab = document.querySelector('[value="upload-video"]');
+                        if (uploadTab) {
+                          (uploadTab as HTMLElement).click();
+                        }
+                      }}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
