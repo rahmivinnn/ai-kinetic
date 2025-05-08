@@ -1,4 +1,12 @@
 import winston from 'winston';
+import fs from 'fs';
+import path from 'path';
+
+// Create logs directory if it doesn't exist
+const logsDir = 'logs';
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 // Define log format
 const logFormat = winston.format.printf(({ level, message, timestamp }) => {
@@ -15,7 +23,7 @@ export const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console(),
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' })
+    new winston.transports.File({ filename: path.join(logsDir, 'error.log'), level: 'error' }),
+    new winston.transports.File({ filename: path.join(logsDir, 'combined.log') })
   ]
 });
