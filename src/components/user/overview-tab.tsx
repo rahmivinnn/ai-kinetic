@@ -4,20 +4,21 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Calendar, 
-  Clock, 
-  Activity, 
-  Video, 
-  MessageSquare, 
-  BarChart2, 
+import {
+  Calendar,
+  Clock,
+  Activity,
+  Video,
+  MessageSquare,
+  BarChart2,
   ChevronRight,
   ArrowRight,
   Camera,
   Sparkles,
   CheckCircle2,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Play
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -264,9 +265,9 @@ export function OverviewTab() {
                           <p className="text-xs text-muted-foreground">{exercise.duration}</p>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-8 px-2"
                         onClick={() => handleStartExercise(exercise.id)}
                       >
@@ -432,8 +433,8 @@ export function OverviewTab() {
               </>
             ) : mockMessages.length > 0 ? (
               mockMessages.map((message) => (
-                <div 
-                  key={message.id} 
+                <div
+                  key={message.id}
                   className={`flex items-start gap-3 p-3 rounded-lg ${
                     message.unread ? 'bg-blue-50 border border-blue-100' : 'bg-muted/30'
                   }`}
