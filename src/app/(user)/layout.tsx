@@ -60,7 +60,7 @@ export default function UserLayout({
 
   return (
     <div className="flex">
-      <div className="fixed left-0 top-0 bottom-0 w-[60px] bg-gradient-to-b from-[#004586] to-[#01042A] flex flex-col items-center py-4 z-[100]">
+      <div className="fixed left-0 top-0 bottom-0 w-[70px] bg-gradient-to-b from-[#004586] to-[#01042A] flex flex-col items-center py-4 z-[100]">
         {/* Logo */}
         <div className="mb-8">
           <Link href="/dashboard">
@@ -150,7 +150,7 @@ export default function UserLayout({
           </Link>
         </div>
       </div>
-      <main className="pl-[70px] pr-4 py-4 w-full min-h-screen bg-[#EBF4FE]">
+      <main className="pl-[80px] pr-4 py-4 w-full min-h-screen bg-[#EBF4FE]">
         {children}
       </main>
     </div>
