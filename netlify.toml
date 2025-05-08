@@ -2,6 +2,28 @@
   command = "npm run build"
   publish = ".next"
 
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "9"
+  NEXT_TELEMETRY_DISABLED = "1"
+
 [dev]
   command = "npm run dev"
   port = 3000
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Force clear cache on each build
+[build.processing]
+  skip_processing = false
+[build.processing.css]
+  bundle = false
+  minify = false
+[build.processing.js]
+  bundle = false
+  minify = false
+[build.processing.html]
+  pretty_urls = true
+[build.processing.images]
+  compress = false
