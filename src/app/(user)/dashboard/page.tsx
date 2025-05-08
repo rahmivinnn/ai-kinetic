@@ -7,7 +7,7 @@ import { VideoUploadForm } from "@/components/user/video-upload";
 import { ExercisePlan } from "@/components/user/exercise-plan-fixed";
 import { VideoAnalysis } from "@/components/user/video-analysis";
 import { PersonalizedExercisePlan } from "@/components/user/personalized-exercise-plan";
-import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw, Camera, Sparkles } from "lucide-react";
+import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw, Camera, Sparkles, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import Image from "next/image";
@@ -291,6 +291,13 @@ const UserHome = () => {
           >
             <Upload className="h-4 w-4 mr-2" />
             My Submissions
+          </div>
+          <div
+            className={`cursor-pointer py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${dashboardNavTab === 'openpose' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            onClick={() => window.location.href = '/openpose-analyzer'}
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            OpenPose Analyzer
           </div>
         </div>
       </div>

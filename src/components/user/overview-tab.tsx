@@ -340,7 +340,7 @@ export function OverviewTab() {
 
             <div className="grid grid-cols-2 gap-2">
               <Button className="w-full bg-cyan-600 hover:bg-cyan-700" asChild>
-                <Link href="/pose-analysis">
+                <Link href="/openpose-analyzer">
                   <Camera className="h-4 w-4 mr-2" />
                   Start Analysis
                 </Link>

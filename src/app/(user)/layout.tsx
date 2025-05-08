@@ -15,7 +15,8 @@ import {
   User,
   Settings,
   LogOut,
-  PhoneCall
+  PhoneCall,
+  Camera
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -93,6 +94,12 @@ export default function UserLayout({
             className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-white/60 hover:text-white hover:bg-white/10"
           >
             <Video className="w-5 h-5" />
+          </Link>
+          <Link
+            href="/openpose-analyzer"
+            className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-white/60 hover:text-white hover:bg-white/10"
+          >
+            <Camera className="w-5 h-5" />
           </Link>
           <Link
             href="/video-call"
