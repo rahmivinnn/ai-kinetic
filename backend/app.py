@@ -43,36 +43,36 @@ def encode_frame(frame):
 def webcam_stream():
     """Generator function for webcam streaming."""
     global webcam, is_streaming
-    
+
     if webcam is None:
         with webcam_lock:
             webcam = cv2.VideoCapture(0)
-    
+
     try:
         while is_streaming:
             with webcam_lock:
                 if not webcam.isOpened():
                     break
-                    
+
                 success, frame = webcam.read()
                 if not success:
                     break
-                
+
                 # Analyze the frame if analysis is active
                 if analyzer.is_analyzing:
                     frame, joint_angles, accuracy = analyzer.analyze_frame(frame)
-                
+
             # Encode the frame
             encoded_frame = encode_frame(frame)
-            
+
             # Yield the frame in multipart format
             yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + 
+                   b'Content-Type: image/jpeg\r\n\r\n' +
                    base64.b64decode(encoded_frame) + b'\r\n')
-            
+
             # Control the frame rate
             time.sleep(0.03)  # ~30 FPS
-    
+
     finally:
         # Clean up resources
         with webcam_lock:
@@ -84,9 +84,9 @@ def webcam_stream():
 def start_webcam():
     """Start the webcam stream."""
     global is_streaming
-    
+
     is_streaming = True
-    
+
     return jsonify({
         'status': 'success',
         'message': 'Webcam stream started'
@@ -96,14 +96,14 @@ def start_webcam():
 def stop_webcam():
     """Stop the webcam stream."""
     global is_streaming, webcam
-    
+
     is_streaming = False
-    
+
     with webcam_lock:
         if webcam is not None and webcam.isOpened():
             webcam.release()
             webcam = None
-    
+
     return jsonify({
         'status': 'success',
         'message': 'Webcam stream stopped'
@@ -113,9 +113,9 @@ def stop_webcam():
 def get_webcam_stream():
     """Stream webcam frames with pose analysis."""
     global is_streaming
-    
+
     is_streaming = True
-    
+
     return Response(
         webcam_stream(),
         mimetype='multipart/x-mixed-replace; boundary=frame'
@@ -125,7 +125,7 @@ def get_webcam_stream():
 def start_analysis():
     """Start pose analysis."""
     analyzer.start_analysis()
-    
+
     return jsonify({
         'status': 'success',
         'message': 'Pose analysis started'
@@ -135,10 +135,10 @@ def start_analysis():
 def stop_analysis():
     """Stop pose analysis."""
     analyzer.stop_analysis()
-    
+
     # Get analysis summary
     summary = analyzer.get_analysis_summary()
-    
+
     return jsonify({
         'status': 'success',
         'message': 'Pose analysis stopped',
@@ -148,11 +148,70 @@ def stop_analysis():
 @app.route('/api/get_feedback', methods=['GET'])
 def get_feedback():
     """Get current posture feedback."""
+    # Extract messages from feedback objects
+    feedback_messages = [item['message'] for item in analyzer.posture_feedback] if analyzer.posture_feedback else []
+
+    # Calculate confidence scores for different body parts
+    confidence_scores = {}
+    if analyzer.joint_angles:
+        # Shoulder alignment score
+        if 'left_shoulder' in analyzer.joint_angles and 'right_shoulder' in analyzer.joint_angles:
+            diff = abs(analyzer.joint_angles['left_shoulder'] - analyzer.joint_angles['right_shoulder'])
+            shoulder_score = max(0, 100 - (diff * 5))  # 5 points per degree difference
+            confidence_scores['shoulders'] = min(100, shoulder_score)
+
+        # Back alignment score
+        if 'left_shoulder' in analyzer.joint_angles and 'left_hip' in analyzer.joint_angles:
+            back_score = 80  # Default score
+            for feedback in analyzer.posture_feedback:
+                if 'back' in feedback['message'].lower():
+                    if 'not straight' in feedback['message'].lower():
+                        back_score = 60
+                    elif 'excellent' in feedback['message'].lower():
+                        back_score = 95
+            confidence_scores['back'] = back_score
+
+        # Knee alignment score
+        knee_scores = []
+        if 'left_knee' in analyzer.joint_angles:
+            angle = analyzer.joint_angles['left_knee']
+            # Score based on how close to 180 degrees (straight) or intentional bend
+            if angle > 170:  # Almost straight
+                knee_scores.append(95)
+            elif angle > 150:  # Slightly bent
+                knee_scores.append(85)
+            elif angle > 100:  # Moderately bent
+                knee_scores.append(75)
+            else:  # Deeply bent
+                knee_scores.append(65)
+
+        if 'right_knee' in analyzer.joint_angles:
+            angle = analyzer.joint_angles['right_knee']
+            if angle > 170:
+                knee_scores.append(95)
+            elif angle > 150:
+                knee_scores.append(85)
+            elif angle > 100:
+                knee_scores.append(75)
+            else:
+                knee_scores.append(65)
+
+        if knee_scores:
+            confidence_scores['knees'] = sum(knee_scores) / len(knee_scores)
+
+    # Add overall posture score
+    if confidence_scores:
+        confidence_scores['overall'] = sum(confidence_scores.values()) / len(confidence_scores)
+    else:
+        confidence_scores['overall'] = analyzer.current_accuracy
+
     return jsonify({
         'status': 'success',
-        'feedback': analyzer.posture_feedback,
+        'feedback': feedback_messages,
         'accuracy': analyzer.current_accuracy,
-        'joint_angles': analyzer.joint_angles
+        'joint_angles': analyzer.joint_angles,
+        'confidence_scores': confidence_scores,
+        'timestamp': time.time()
     })
 
 @app.route('/api/upload_video', methods=['POST'])
@@ -163,31 +222,31 @@ def upload_video():
             'status': 'error',
             'message': 'No video file provided'
         }), 400
-    
+
     video_file = request.files['video']
-    
+
     if video_file.filename == '':
         return jsonify({
             'status': 'error',
             'message': 'No video file selected'
         }), 400
-    
+
     if not allowed_file(video_file.filename):
         return jsonify({
             'status': 'error',
             'message': 'File type not allowed. Please upload MP4, AVI, MOV, or WEBM files.'
         }), 400
-    
+
     # Save the uploaded file
     filename = secure_filename(video_file.filename)
     timestamp = int(time.time())
     video_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{timestamp}_{filename}")
     video_file.save(video_path)
-    
+
     # Prepare output path
     output_filename = f"analyzed_{timestamp}_{filename}"
     output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-    
+
     # Analyze the video in a separate thread to avoid blocking
     def analyze_video_task():
         try:
@@ -197,9 +256,9 @@ def upload_video():
                 os.remove(video_path)
         except Exception as e:
             print(f"Error analyzing video: {e}")
-    
+
     threading.Thread(target=analyze_video_task).start()
-    
+
     return jsonify({
         'status': 'success',
         'message': 'Video uploaded and analysis started',
@@ -212,30 +271,30 @@ def get_video_result(video_id):
     """Get the analyzed video result."""
     output_filename = f"analyzed_{video_id}"
     output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-    
+
     if not os.path.exists(output_path):
         return jsonify({
             'status': 'pending',
             'message': 'Video analysis is still in progress'
         })
-    
+
     return send_file(output_path, mimetype='video/mp4')
 
 @app.route('/api/export_results', methods=['POST'])
 def export_results():
     """Export analysis results to a file."""
     format_type = request.json.get('format', 'json')
-    
+
     try:
         file_path = analyzer.export_results(app.config['UPLOAD_FOLDER'], format_type)
         filename = os.path.basename(file_path)
-        
+
         return jsonify({
             'status': 'success',
             'message': f'Results exported as {format_type}',
             'file': filename
         })
-    
+
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -246,16 +305,16 @@ def export_results():
 def download_results(filename):
     """Download exported results file."""
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    
+
     if not os.path.exists(file_path):
         return jsonify({
             'status': 'error',
             'message': 'File not found'
         }), 404
-    
+
     # Determine the MIME type based on file extension
     mime_type = 'application/json' if filename.endswith('.json') else 'text/csv'
-    
+
     return send_file(file_path, mimetype=mime_type, as_attachment=True)
 
 if __name__ == '__main__':
