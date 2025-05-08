@@ -2,11 +2,12 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "installCommand": "npm install",
+  "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "regions": ["all"],
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://ai-kinetic-backend.vercel.app/api"
+    "NEXT_PUBLIC_API_URL": "https://ai-kinetic-backend.vercel.app/api",
+    "NEXT_PUBLIC_USE_MOCK_DATA": "true"
   },
   "headers": [
     {
