@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VideoUploadForm } from "@/components/user/video-upload";
-import { ExercisePlan } from "@/components/user/exercise-plan";
+import { ExercisePlan } from "@/components/user/exercise-plan-fixed";
 import { VideoAnalysis } from "@/components/user/video-analysis";
 import { PersonalizedExercisePlan } from "@/components/user/personalized-exercise-plan";
 import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw, Camera, Sparkles } from "lucide-react";
