@@ -7,13 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  MessageSquare, 
-  Search, 
-  Send, 
-  Paperclip, 
-  Video, 
-  Phone, 
+import {
+  MessageSquare,
+  Search,
+  Send,
+  Paperclip,
+  Video,
+  Phone,
   MoreVertical,
   Clock,
   CheckCheck,
@@ -51,7 +51,7 @@ const mockContacts = [
     name: 'Emma Wilson',
     role: 'Physical Therapist',
     avatar: '/images/therapist-1.jpg',
-    lastMessage: 'Don't forget to do your exercises today!',
+    lastMessage: "Don't forget to do your exercises today!",
     time: 'Yesterday',
     unread: 1,
     online: true
@@ -61,7 +61,7 @@ const mockContacts = [
     name: 'Dr. Robert Davis',
     role: 'Rehabilitation Specialist',
     avatar: '/images/doctor-3.jpg',
-    lastMessage: 'I've reviewed your progress. Let's discuss next steps.',
+    lastMessage: "I've reviewed your progress. Let's discuss next steps.",
     time: 'Monday',
     unread: 0,
     online: false
@@ -262,8 +262,8 @@ export function MessagesTab() {
               </div>
               <h3 className="text-lg font-medium">No contacts found</h3>
               <p className="text-muted-foreground mt-1">
-                {searchTerm 
-                  ? `No results for "${searchTerm}". Try a different search term.` 
+                {searchTerm
+                  ? `No results for "${searchTerm}". Try a different search term.`
                   : "You don't have any messages yet."}
               </p>
             </div>
