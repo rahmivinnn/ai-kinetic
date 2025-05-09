@@ -30,7 +30,12 @@ import {
   Settings,
   FileDown,
   FileJson,
-  FileSpreadsheet
+  FileSpreadsheet,
+  MessageSquare,
+  BarChart2,
+  Activity,
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
