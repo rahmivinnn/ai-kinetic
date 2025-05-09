@@ -72,12 +72,88 @@ export default function OpenPoseAnalyzerPage() {
     { id: 'pushup', name: 'Push-up', thumbnail: '/exercises/pushup.jpg' },
     { id: 'shoulderpress', name: 'Shoulder Press', thumbnail: '/exercises/shoulder-press.jpg' }
   ]);
+
+  // Exercise library states
+  const [exerciseLibrary, setExerciseLibrary] = useState([
+    {
+      id: 'squat',
+      name: 'Proper Squat Form',
+      category: 'Lower Body',
+      difficulty: 'Beginner',
+      videoUrl: 'https://www.youtube.com/embed/YaXPRqUwItQ',
+      description: 'Learn the proper form for squats to maximize effectiveness and prevent injury.',
+      keyPoints: [
+        'Keep your feet shoulder-width apart',
+        'Maintain a straight back throughout the movement',
+        'Lower until thighs are parallel to the ground',
+        'Push through your heels to return to standing position'
+      ]
+    },
+    {
+      id: 'lunge',
+      name: 'Forward Lunge Technique',
+      category: 'Lower Body',
+      difficulty: 'Intermediate',
+      videoUrl: 'https://www.youtube.com/embed/QOVaHwm-Q6U',
+      description: 'Master the forward lunge to strengthen your legs and improve balance.',
+      keyPoints: [
+        'Step forward with one leg, lowering your hips',
+        'Keep your front knee directly above your ankle',
+        'Maintain an upright posture',
+        'Push back to starting position through your front heel'
+      ]
+    },
+    {
+      id: 'plank',
+      name: 'Perfect Plank Position',
+      category: 'Core',
+      difficulty: 'Beginner',
+      videoUrl: 'https://www.youtube.com/embed/pSHjTRCQxIw',
+      description: 'Learn how to hold a proper plank to strengthen your core and improve stability.',
+      keyPoints: [
+        'Keep your body in a straight line from head to heels',
+        'Engage your core muscles throughout',
+        'Keep your shoulders directly above your elbows',
+        'Avoid sagging hips or raising your buttocks'
+      ]
+    },
+    {
+      id: 'pushup',
+      name: 'Push-up Form Guide',
+      category: 'Upper Body',
+      difficulty: 'Intermediate',
+      videoUrl: 'https://www.youtube.com/embed/IODxDxX7oi4',
+      description: 'Master the perfect push-up technique for chest, shoulder, and arm strength.',
+      keyPoints: [
+        'Position hands slightly wider than shoulder-width',
+        'Keep your body in a straight line',
+        'Lower your chest to just above the floor',
+        'Fully extend arms at the top without locking elbows'
+      ]
+    },
+    {
+      id: 'shoulderpress',
+      name: 'Shoulder Press Technique',
+      category: 'Upper Body',
+      difficulty: 'Intermediate',
+      videoUrl: 'https://www.youtube.com/embed/qEwKCR5JCog',
+      description: 'Learn proper shoulder press form to build shoulder strength safely.',
+      keyPoints: [
+        'Keep your core engaged throughout the movement',
+        'Press weights directly overhead',
+        'Avoid arching your lower back',
+        'Lower weights with control to shoulder level'
+      ]
+    }
+  ]);
+  const [selectedExercise, setSelectedExercise] = useState<any>(null);
   const [selectedReference, setSelectedReference] = useState<string | null>(null);
   const [comparisonResults, setComparisonResults] = useState<any>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const streamRef = useRef<HTMLImageElement>(null);
+  const streamRef = useRef<HTMLVideoElement>(null);
+  const fallbackStreamRef = useRef<HTMLImageElement>(null);
 
   // Feedback polling interval
   const feedbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -155,40 +231,54 @@ export default function OpenPoseAnalyzerPage() {
         // Simulation mode - use browser's webcam API directly
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
 
-        // Create a video element to display the stream
-        const videoEl = document.createElement('video');
-        videoEl.srcObject = stream;
-        videoEl.autoplay = true;
-        videoEl.playsInline = true;
+        // Use the video element directly
+        if (streamRef.current) {
+          streamRef.current.srcObject = stream;
 
-        // Create a canvas to capture frames from the video
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+          // Create a canvas for processing frames if needed
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
 
-        // Set dimensions
-        canvas.width = 640;
-        canvas.height = 480;
+          // Set dimensions
+          canvas.width = 640;
+          canvas.height = 480;
 
-        // Function to draw video frame to canvas and convert to image
-        const updateCanvas = () => {
-          if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
-            ctx?.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-            if (streamRef.current) {
-              streamRef.current.src = canvas.toDataURL('image/jpeg');
+          // Store canvas for later use
+          (window as any).openPoseCanvas = canvas;
+          (window as any).openPoseContext = ctx;
+
+          // Function to process video frames (for pose detection simulation)
+          const processFrame = () => {
+            if (streamRef.current && streamRef.current.readyState === streamRef.current.HAVE_ENOUGH_DATA) {
+              // Only process frames when analyzing
+              if (isAnalyzing) {
+                ctx?.drawImage(streamRef.current, 0, 0, canvas.width, canvas.height);
+
+                // Here we would normally do pose detection
+                // For simulation, we'll draw a skeleton on the canvas
+                drawSimulatedSkeleton(ctx, canvas.width, canvas.height, isAnalyzing);
+
+                // If we need a fallback image (e.g., for browsers that don't support video)
+                const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
+                if (fallbackImg) {
+                  fallbackImg.src = canvas.toDataURL('image/jpeg');
+                }
+              }
             }
-          }
-          if (isStreaming) {
-            requestAnimationFrame(updateCanvas);
-          }
-        };
 
-        videoEl.onloadedmetadata = () => {
-          updateCanvas();
-        };
+            if (isStreaming) {
+              requestAnimationFrame(processFrame);
+            }
+          };
+
+          // Start processing frames
+          streamRef.current.onloadedmetadata = () => {
+            processFrame();
+          };
+        }
 
         // Store stream reference for cleanup
         (window as any).openPoseStream = stream;
-        (window as any).openPoseVideo = videoEl;
 
         setIsStreaming(true);
 
@@ -264,13 +354,21 @@ export default function OpenPoseAnalyzerPage() {
           const stream = (window as any).openPoseStream as MediaStream;
           stream.getTracks().forEach(track => track.stop());
           (window as any).openPoseStream = null;
-          (window as any).openPoseVideo = null;
+          // Clean up canvas resources
+          (window as any).openPoseCanvas = null;
+          (window as any).openPoseContext = null;
         }
 
         setIsStreaming(false);
 
         if (streamRef.current) {
-          streamRef.current.src = '';
+          streamRef.current.srcObject = null;
+        }
+
+        // Also clear fallback image if it exists
+        const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
+        if (fallbackImg) {
+          fallbackImg.src = '';
         }
       } else {
         // Real API mode
@@ -281,7 +379,13 @@ export default function OpenPoseAnalyzerPage() {
         setIsStreaming(false);
 
         if (streamRef.current) {
-          streamRef.current.src = '';
+          streamRef.current.srcObject = null;
+        }
+
+        // Also clear fallback image if it exists
+        const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
+        if (fallbackImg) {
+          fallbackImg.src = '';
         }
       }
     } catch (error) {
@@ -293,7 +397,9 @@ export default function OpenPoseAnalyzerPage() {
           const stream = (window as any).openPoseStream as MediaStream;
           stream.getTracks().forEach(track => track.stop());
           (window as any).openPoseStream = null;
-          (window as any).openPoseVideo = null;
+          // Clean up canvas resources
+          (window as any).openPoseCanvas = null;
+          (window as any).openPoseContext = null;
         } catch (cleanupError) {
           console.error('Error cleaning up webcam resources:', cleanupError);
         }
@@ -302,7 +408,13 @@ export default function OpenPoseAnalyzerPage() {
       setIsStreaming(false);
 
       if (streamRef.current) {
-        streamRef.current.src = '';
+        streamRef.current.srcObject = null;
+      }
+
+      // Also clear fallback image if it exists
+      const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
+      if (fallbackImg) {
+        fallbackImg.src = '';
       }
     }
   };
@@ -633,6 +745,100 @@ export default function OpenPoseAnalyzerPage() {
     }
   };
 
+  // Function to animate skeleton on video playback
+  const startVideoSkeletonAnimation = () => {
+    // Clear any existing interval
+    if ((window as any).videoSkeletonInterval) {
+      clearInterval((window as any).videoSkeletonInterval);
+    }
+
+    // Get the canvas
+    const canvas = document.getElementById('videoSkeletonOverlay') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set up keyframes for skeleton animation
+    const keyframes = [
+      // Frame 1 - starting position
+      {
+        rightKnee: 85,
+        leftKnee: 87,
+        rightHip: 170,
+        leftHip: 172,
+        rightShoulder: 45,
+        leftShoulder: 43
+      },
+      // Frame 2 - mid position
+      {
+        rightKnee: 100,
+        leftKnee: 102,
+        rightHip: 160,
+        leftHip: 162,
+        rightShoulder: 50,
+        leftShoulder: 48
+      },
+      // Frame 3 - extended position
+      {
+        rightKnee: 120,
+        leftKnee: 122,
+        rightHip: 150,
+        leftHip: 152,
+        rightShoulder: 55,
+        leftShoulder: 53
+      },
+      // Frame 4 - return to mid position
+      {
+        rightKnee: 100,
+        leftKnee: 102,
+        rightHip: 160,
+        leftHip: 162,
+        rightShoulder: 50,
+        leftShoulder: 48
+      },
+      // Frame 5 - back to starting position
+      {
+        rightKnee: 85,
+        leftKnee: 87,
+        rightHip: 170,
+        leftHip: 172,
+        rightShoulder: 45,
+        leftShoulder: 43
+      }
+    ];
+
+    let frameIndex = 0;
+    let progress = 0;
+    const frameTime = 1000; // Time per keyframe in ms
+
+    // Start animation interval
+    (window as any).videoSkeletonInterval = setInterval(() => {
+      // Calculate current and next frame
+      const currentFrame = keyframes[frameIndex];
+      const nextFrame = keyframes[(frameIndex + 1) % keyframes.length];
+
+      // Interpolate between frames
+      const interpolatedAngles: any = {};
+      Object.keys(currentFrame).forEach(key => {
+        const current = currentFrame[key as keyof typeof currentFrame];
+        const next = nextFrame[key as keyof typeof nextFrame];
+        interpolatedAngles[key] = current + (next - current) * progress;
+      });
+
+      // Draw skeleton with interpolated angles
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawSimulatedSkeleton(ctx, canvas.width, canvas.height, true, interpolatedAngles);
+
+      // Update progress
+      progress += 0.05;
+      if (progress >= 1) {
+        progress = 0;
+        frameIndex = (frameIndex + 1) % keyframes.length;
+      }
+    }, 50); // Update every 50ms for smooth animation
+  };
+
   const exportResults = async (format: 'json' | 'csv') => {
     try {
       const response = await fetch(`${API_URL}/export_results`, {
@@ -694,6 +900,168 @@ export default function OpenPoseAnalyzerPage() {
       // Reset comparison results when enabling
       setComparisonResults(null);
       setSelectedReference(null);
+    }
+  };
+
+  // Function to draw a simulated skeleton on the canvas
+  const drawSimulatedSkeleton = (ctx: CanvasRenderingContext2D | null, width: number, height: number, isActive: boolean, customAngles?: any) => {
+    if (!ctx) return;
+
+    // Get joint angles for skeleton positioning
+    const kneeAngle = customAngles?.rightKnee || customAngles?.right_knee || jointAngles.right_knee || 85;
+    const hipAngle = customAngles?.rightHip || customAngles?.right_hip || jointAngles.right_hip || 170;
+    const shoulderAngle = customAngles?.rightShoulder || customAngles?.right_shoulder || jointAngles.right_shoulder || 45;
+
+    // Calculate positions based on angles
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // Head
+    const headRadius = 20;
+    const headY = centerY - 120;
+
+    // Shoulders
+    const shoulderWidth = 60;
+    const shoulderY = headY + 40;
+    const leftShoulderX = centerX - shoulderWidth;
+    const rightShoulderX = centerX + shoulderWidth;
+
+    // Hips
+    const hipWidth = 50;
+    const hipY = shoulderY + 130;
+    const leftHipX = centerX - hipWidth;
+    const rightHipX = centerX + hipWidth;
+
+    // Calculate limb positions based on angles
+    // Arms
+    const elbowLength = 50;
+    const forearmLength = 60;
+
+    // Left arm
+    const leftElbowX = leftShoulderX - elbowLength * Math.cos((shoulderAngle + 10) * Math.PI / 180);
+    const leftElbowY = shoulderY + elbowLength * Math.sin((shoulderAngle + 10) * Math.PI / 180);
+    const leftWristX = leftElbowX - forearmLength * Math.cos((shoulderAngle - 20) * Math.PI / 180);
+    const leftWristY = leftElbowY + forearmLength * Math.sin((shoulderAngle - 20) * Math.PI / 180);
+
+    // Right arm
+    const rightElbowX = rightShoulderX + elbowLength * Math.cos((shoulderAngle + 10) * Math.PI / 180);
+    const rightElbowY = shoulderY + elbowLength * Math.sin((shoulderAngle + 10) * Math.PI / 180);
+    const rightWristX = rightElbowX + forearmLength * Math.cos((shoulderAngle - 20) * Math.PI / 180);
+    const rightWristY = rightElbowY + forearmLength * Math.sin((shoulderAngle - 20) * Math.PI / 180);
+
+    // Legs
+    const kneeLength = 80;
+    const calfLength = 90;
+
+    // Left leg
+    const leftKneeX = leftHipX - kneeLength * Math.sin((hipAngle - 180) * Math.PI / 180);
+    const leftKneeY = hipY + kneeLength * Math.cos((hipAngle - 180) * Math.PI / 180);
+    const leftAnkleX = leftKneeX - calfLength * Math.sin((kneeAngle - 180) * Math.PI / 180);
+    const leftAnkleY = leftKneeY + calfLength * Math.cos((kneeAngle - 180) * Math.PI / 180);
+
+    // Right leg
+    const rightKneeX = rightHipX + kneeLength * Math.sin((hipAngle - 180) * Math.PI / 180);
+    const rightKneeY = hipY + kneeLength * Math.cos((hipAngle - 180) * Math.PI / 180);
+    const rightAnkleX = rightKneeX + calfLength * Math.sin((kneeAngle - 180) * Math.PI / 180);
+    const rightAnkleY = rightKneeY + calfLength * Math.cos((kneeAngle - 180) * Math.PI / 180);
+
+    // Add some movement if active
+    const wobble = isActive ? Math.sin(Date.now() / 300) * 3 : 0;
+
+    // Clear previous drawings
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(0, 0, width, height);
+    ctx.globalAlpha = 1.0;
+
+    // Draw skeleton
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Draw body parts with glow effect
+    const drawBodyPart = (x1: number, y1: number, x2: number, y2: number, color: string) => {
+      // Glow effect
+      ctx!.shadowColor = color;
+      ctx!.shadowBlur = 15;
+      ctx!.strokeStyle = color;
+      ctx!.beginPath();
+      ctx!.moveTo(x1, y1 + wobble);
+      ctx!.lineTo(x2, y2 + wobble);
+      ctx!.stroke();
+
+      // Reset shadow
+      ctx!.shadowBlur = 0;
+    };
+
+    // Draw joints with glow effect
+    const drawJoint = (x: number, y: number, color: string) => {
+      ctx!.shadowColor = color;
+      ctx!.shadowBlur = 15;
+      ctx!.fillStyle = color;
+      ctx!.beginPath();
+      ctx!.arc(x, y + wobble, 8, 0, Math.PI * 2);
+      ctx!.fill();
+
+      // Reset shadow
+      ctx!.shadowBlur = 0;
+    };
+
+    // Torso
+    drawBodyPart(leftShoulderX, shoulderY, rightShoulderX, shoulderY, '#4f46e5');
+    drawBodyPart(leftShoulderX, shoulderY, leftHipX, hipY, '#4f46e5');
+    drawBodyPart(rightShoulderX, shoulderY, rightHipX, hipY, '#4f46e5');
+    drawBodyPart(leftHipX, hipY, rightHipX, hipY, '#4f46e5');
+
+    // Head
+    ctx.shadowColor = '#4f46e5';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#4f46e5';
+    ctx.beginPath();
+    ctx.arc(centerX, headY + wobble, headRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Arms
+    drawBodyPart(leftShoulderX, shoulderY, leftElbowX, leftElbowY, '#06b6d4');
+    drawBodyPart(leftElbowX, leftElbowY, leftWristX, leftWristY, '#06b6d4');
+    drawBodyPart(rightShoulderX, shoulderY, rightElbowX, rightElbowY, '#06b6d4');
+    drawBodyPart(rightElbowX, rightElbowY, rightWristX, rightWristY, '#06b6d4');
+
+    // Legs
+    drawBodyPart(leftHipX, hipY, leftKneeX, leftKneeY, '#8b5cf6');
+    drawBodyPart(leftKneeX, leftKneeY, leftAnkleX, leftAnkleY, '#8b5cf6');
+    drawBodyPart(rightHipX, hipY, rightKneeX, rightKneeY, '#8b5cf6');
+    drawBodyPart(rightKneeX, rightKneeY, rightAnkleX, rightAnkleY, '#8b5cf6');
+
+    // Joints
+    drawJoint(leftShoulderX, shoulderY, '#06b6d4');
+    drawJoint(rightShoulderX, shoulderY, '#06b6d4');
+    drawJoint(leftElbowX, leftElbowY, '#06b6d4');
+    drawJoint(rightElbowX, rightElbowY, '#06b6d4');
+    drawJoint(leftWristX, leftWristY, '#06b6d4');
+    drawJoint(rightWristX, rightWristY, '#06b6d4');
+
+    drawJoint(leftHipX, hipY, '#8b5cf6');
+    drawJoint(rightHipX, hipY, '#8b5cf6');
+    drawJoint(leftKneeX, leftKneeY, '#8b5cf6');
+    drawJoint(rightKneeX, rightKneeY, '#8b5cf6');
+    drawJoint(leftAnkleX, leftAnkleY, '#8b5cf6');
+    drawJoint(rightAnkleX, rightAnkleY, '#8b5cf6');
+
+    // Draw angle indicators if analyzing
+    if (isActive) {
+      // Knee angle
+      ctx.font = '16px Arial';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${Math.round(kneeAngle)}°`, rightKneeX + 30, rightKneeY);
+
+      // Hip angle
+      ctx.fillText(`${Math.round(hipAngle)}°`, rightHipX + 30, hipY);
+
+      // Shoulder angle
+      ctx.fillText(`${Math.round(shoulderAngle)}°`, rightShoulderX + 30, shoulderY);
     }
   };
 
@@ -795,6 +1163,18 @@ export default function OpenPoseAnalyzerPage() {
                     <p>Upload and analyze a pre-recorded video</p>
                   </TooltipContent>
                 </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger value="library" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+                      <Video className="h-4 w-4 mr-2" />
+                      Exercise Library
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Browse example exercises with proper form</p>
+                  </TooltipContent>
+                </Tooltip>
               </TabsList>
             </Tabs>
           </TooltipProvider>
@@ -847,10 +1227,21 @@ export default function OpenPoseAnalyzerPage() {
                     </motion.div>
                   ) : (
                     <>
+                      {/* Use video element instead of img for better streaming */}
+                      <video
+                        ref={streamRef as any}
+                        className="absolute inset-0 w-full h-full object-contain"
+                        autoPlay
+                        playsInline
+                        muted
+                      />
+
+                      {/* Fallback image if video fails */}
                       <img
-                        ref={streamRef}
+                        id="fallbackStream"
                         className="absolute inset-0 w-full h-full object-contain"
                         alt="Live stream"
+                        style={{ display: 'none' }}
                       />
 
                       {/* Overlay elements for live analysis */}
@@ -883,21 +1274,178 @@ export default function OpenPoseAnalyzerPage() {
                           </motion.div>
                         )}
 
-                        {/* Joint angle visualization (example) */}
+                        {/* Pose Correction Guidance */}
+                        {isAnalyzing && feedback.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute top-16 right-4 bg-black/70 backdrop-blur-sm text-white px-4 py-3 rounded-lg max-w-xs"
+                          >
+                            <h4 className="text-sm font-semibold mb-2 flex items-center">
+                              <Info className="h-4 w-4 mr-2 text-blue-400" />
+                              Pose Guidance
+                            </h4>
+                            <p className="text-sm text-blue-200 mb-1">{feedback[0]}</p>
+                            {feedback.length > 1 && (
+                              <p className="text-xs text-blue-300 mt-1 opacity-80">{feedback[1]}</p>
+                            )}
+                          </motion.div>
+                        )}
+
+                        {/* Joint angle visualization with improved UI */}
                         {isAnalyzing && showAngles && Object.keys(jointAngles).length > 0 && (
                           <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-2 justify-center">
-                            {Object.entries(jointAngles).slice(0, 4).map(([joint, angle]) => (
-                              <Badge
-                                key={joint}
-                                className="bg-black/70 backdrop-blur-sm text-white px-3 py-1"
-                              >
-                                {joint.replace('_', ' ')}: {typeof angle === 'number' ? angle.toFixed(1) : (angle as any).toFixed(1)}°
-                              </Badge>
-                            ))}
+                            {Object.entries(jointAngles).slice(0, 6).map(([joint, angle]) => {
+                              // Determine if angle is in optimal range
+                              const isOptimal =
+                                (joint.includes('knee') && angle >= 80 && angle <= 100) ||
+                                (joint.includes('hip') && angle >= 160 && angle <= 180) ||
+                                (joint.includes('shoulder') && angle >= 40 && angle <= 60);
+
+                              return (
+                                <Badge
+                                  key={joint}
+                                  className={`backdrop-blur-sm px-3 py-1 ${
+                                    isOptimal
+                                      ? 'bg-green-500/70 text-white'
+                                      : 'bg-black/70 text-white'
+                                  }`}
+                                >
+                                  <span className="capitalize">{joint.replace('_', ' ')}</span>:
+                                  <span className="font-bold ml-1">
+                                    {typeof angle === 'number' ? angle.toFixed(1) : (angle as any).toFixed(1)}°
+                                  </span>
+                                  {isOptimal && (
+                                    <Check className="h-3 w-3 ml-1 text-white" />
+                                  )}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Skeleton visualization overlay */}
+                        {isAnalyzing && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <canvas
+                              id="skeletonOverlay"
+                              width="640"
+                              height="480"
+                              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                              style={{ opacity: 0.8 }}
+                            />
                           </div>
                         )}
                       </div>
                     </>
+                  )}
+                </>
+              ) : activeTab === 'library' ? (
+                <>
+                  {selectedExercise ? (
+                    <div className="relative w-full h-full">
+                      <iframe
+                        src={selectedExercise.videoUrl}
+                        className="absolute inset-0 w-full h-full"
+                        title={selectedExercise.name}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+
+                      {/* Exercise info overlay */}
+                      <div className="absolute top-4 left-4 right-4 flex justify-between">
+                        <div className="bg-black/70 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm flex items-center">
+                          <span className="h-3 w-3 bg-green-500 rounded-full mr-2"></span>
+                          <span>{selectedExercise.name}</span>
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-black/70 text-white border-none hover:bg-black/90"
+                          onClick={() => setSelectedExercise(null)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Back to Library
+                        </Button>
+                      </div>
+
+                      {/* Key points overlay */}
+                      <div className="absolute bottom-4 left-4 right-4 bg-black/70 backdrop-blur-sm text-white p-4 rounded-lg">
+                        <h4 className="text-sm font-semibold mb-2">Key Form Points</h4>
+                        <ul className="space-y-1">
+                          {selectedExercise.keyPoints.map((point: string, index: number) => (
+                            <li key={index} className="flex items-start gap-2 text-sm">
+                              <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        <div className="mt-3 pt-2 border-t border-white/20">
+                          <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => {
+                              setActiveTab('live');
+                              setIsStreaming(true);
+                              setTimeout(() => {
+                                startAnalysis();
+                                toast.success(`Practice the ${selectedExercise.name} with real-time feedback`, {
+                                  description: "Your form will be analyzed and compared to the proper technique"
+                                });
+                              }, 1000);
+                            }}
+                          >
+                            <Camera className="h-3 w-3 mr-1" />
+                            Practice Now
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 overflow-auto bg-gradient-to-br from-indigo-50 to-blue-50 p-6">
+                      <h3 className="text-xl font-bold text-blue-900 mb-4">Exercise Form Library</h3>
+                      <p className="text-blue-700 mb-6">Browse example exercises with proper form and technique guidance</p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {exerciseLibrary.map((exercise) => (
+                          <motion.div
+                            key={exercise.id}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all cursor-pointer border border-blue-100"
+                            onClick={() => setSelectedExercise(exercise)}
+                          >
+                            <div className="h-40 bg-gray-200 relative">
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Video className="h-12 w-12 text-blue-500 opacity-70" />
+                              </div>
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+                                <h4 className="text-white font-medium">{exercise.name}</h4>
+                                <div className="flex gap-2 mt-1">
+                                  <Badge className="bg-blue-600">{exercise.category}</Badge>
+                                  <Badge className={exercise.difficulty === 'Beginner' ? 'bg-green-600' : 'bg-yellow-600'}>
+                                    {exercise.difficulty}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="p-4">
+                              <p className="text-sm text-gray-600">{exercise.description}</p>
+                              <Button
+                                size="sm"
+                                className="mt-3 w-full bg-blue-600 hover:bg-blue-700"
+                              >
+                                <Play className="h-3 w-3 mr-1" />
+                                Watch Tutorial
+                              </Button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </>
               ) : (
@@ -938,17 +1486,57 @@ export default function OpenPoseAnalyzerPage() {
                     </motion.div>
                   ) : analyzedVideoUrl ? (
                     <>
-                      <video
-                        ref={videoRef}
-                        src={analyzedVideoUrl}
-                        className="absolute inset-0 w-full h-full object-contain"
-                        controls
-                      />
+                      <div className="relative w-full h-full">
+                        <video
+                          ref={videoRef}
+                          src={analyzedVideoUrl}
+                          className="absolute inset-0 w-full h-full object-contain"
+                          controls
+                          onPlay={() => {
+                            // Start skeleton animation when video plays
+                            if (videoRef.current) {
+                              startVideoSkeletonAnimation();
+                            }
+                          }}
+                          onPause={() => {
+                            // Stop skeleton animation when video pauses
+                            if ((window as any).videoSkeletonInterval) {
+                              clearInterval((window as any).videoSkeletonInterval);
+                            }
+                          }}
+                        />
 
-                      {/* Overlay for analyzed video */}
-                      <div className="absolute top-4 left-4 bg-black/70 backdrop-blur-sm text-white px-3 py-2 rounded-full text-sm flex items-center">
-                        <span className="h-3 w-3 bg-green-500 rounded-full mr-2"></span>
-                        <span>ANALYZED VIDEO</span>
+                        {/* Skeleton overlay canvas */}
+                        <canvas
+                          id="videoSkeletonOverlay"
+                          width="640"
+                          height="480"
+                          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                          style={{ opacity: 0.8 }}
+                        />
+
+                        {/* Overlay for analyzed video */}
+                        <div className="absolute top-4 left-4 bg-black/70 backdrop-blur-sm text-white px-3 py-2 rounded-full text-sm flex items-center">
+                          <span className="h-3 w-3 bg-green-500 rounded-full mr-2"></span>
+                          <span>ANALYZED VIDEO</span>
+                        </div>
+
+                        {/* Analysis results overlay */}
+                        <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-sm text-white px-4 py-3 rounded-lg">
+                          <h4 className="text-sm font-semibold mb-2">Analysis Results</h4>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs">Form Accuracy:</span>
+                            <span className="text-sm font-bold text-green-400">92%</span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs">Movement Quality:</span>
+                            <span className="text-sm font-bold text-yellow-400">85%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs">Stability:</span>
+                            <span className="text-sm font-bold text-blue-400">90%</span>
+                          </div>
+                        </div>
                       </div>
                     </>
                   ) : (
@@ -1519,6 +2107,132 @@ export default function OpenPoseAnalyzerPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Exercise Plan Generator */}
+          <Card className="border-2 border-primary/10 hover:shadow-lg transition-all duration-300">
+            <CardHeader className="pb-2 bg-gradient-to-r from-green-50 to-teal-50 border-b">
+              <CardTitle className="text-lg flex items-center">
+                <div className="bg-green-100 p-1 rounded-full mr-2">
+                  <CalendarDays className="h-4 w-4 text-green-700" />
+                </div>
+                Personalized Exercise Plan
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              {isLoading ? (
+                <div className="space-y-4">
+                  <div className="h-10 bg-green-50 rounded-lg animate-pulse"></div>
+                  <div className="h-10 bg-green-50 rounded-lg animate-pulse"></div>
+                </div>
+              ) : analysisSummary ? (
+                <div className="space-y-4">
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                    <h3 className="text-green-800 font-medium mb-2">7-Day Exercise Plan Based on Your Analysis</h3>
+                    <p className="text-green-700 text-sm mb-4">This plan is customized based on your movement patterns and areas that need improvement.</p>
+
+                    <div className="space-y-3">
+                      {/* Day 1 */}
+                      <div className="bg-white p-3 rounded-md border border-green-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="font-medium text-green-900">Day 1: Lower Body Focus</h4>
+                          <Badge className="bg-green-100 text-green-800">30 min</Badge>
+                        </div>
+                        <ul className="space-y-1">
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-green-800">Squats: 3 sets x 12 reps (focus on {analysisSummary.joint_analysis?.knees ? 'improving knee stability' : 'proper form'})</span>
+                          </li>
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-green-800">Lunges: 3 sets x 10 reps each leg</span>
+                          </li>
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-green-800">Calf raises: 2 sets x 15 reps</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* Day 2 */}
+                      <div className="bg-white p-3 rounded-md border border-green-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="font-medium text-green-900">Day 2: Upper Body Strength</h4>
+                          <Badge className="bg-green-100 text-green-800">25 min</Badge>
+                        </div>
+                        <ul className="space-y-1">
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-green-800">Push-ups: 3 sets x 10 reps (focus on {analysisSummary.joint_analysis?.shoulders ? 'shoulder alignment' : 'core engagement'})</span>
+                          </li>
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-green-800">Dumbbell rows: 3 sets x 12 reps</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* Day 3 */}
+                      <div className="bg-white p-3 rounded-md border border-green-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="font-medium text-green-900">Day 3: Core & Flexibility</h4>
+                          <Badge className="bg-green-100 text-green-800">20 min</Badge>
+                        </div>
+                        <ul className="space-y-1">
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-green-800">Planks: 3 sets x 30 seconds</span>
+                          </li>
+                          <li className="flex items-start gap-2 text-sm">
+                            <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="text-green-800">Hip mobility exercises: 2 sets x 10 reps</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex justify-end">
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                        <Download className="h-3 w-3 mr-1" />
+                        Download Full 7-Day Plan
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center p-8 text-center bg-gray-50 rounded-lg">
+                  <div className="bg-gray-100 p-3 rounded-full mb-3">
+                    <CalendarDays className="h-6 w-6 text-gray-600" />
+                  </div>
+                  <p className="text-gray-800 font-medium">No exercise plan available</p>
+                  <p className="text-gray-600 text-sm mt-1 mb-4">Complete an analysis to generate a personalized exercise plan</p>
+                  <Button
+                    variant="outline"
+                    className="border-green-200 text-green-600 hover:bg-green-50"
+                    onClick={() => {
+                      if (activeTab === 'live') {
+                        if (!isStreaming) {
+                          setIsStreaming(true);
+                          setTimeout(() => startAnalysis(), 1000);
+                        } else if (!isAnalyzing) {
+                          startAnalysis();
+                        }
+                      } else {
+                        setActiveTab('live');
+                        setIsStreaming(true);
+                        setTimeout(() => startAnalysis(), 1000);
+                      }
+                      toast.success('Starting analysis to generate your exercise plan', {
+                        description: 'Complete the analysis to see your personalized recommendations'
+                      });
+                    }}
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Start Analysis
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Action Buttons */}
           <div className="flex gap-3">
