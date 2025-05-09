@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import Image from "next/image";
+import { ArrowRight } from 'lucide-react';
 
 export default function WelcomePage() {
   const router = useRouter();
@@ -55,49 +56,62 @@ export default function WelcomePage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-700 flex flex-col items-center justify-center p-4">
       {/* Welcome Animation */}
       {showWelcome && (
-        <div className="fixed inset-0 flex items-center justify-center bg-[#01042A] z-50">
-          <div className="text-center">
-            <div className="inline-block rounded-full bg-blue-500/20 p-6 mb-4">
-              <div className="rounded-full bg-blue-500/40 p-4">
-                <div className="rounded-full bg-blue-500 text-white p-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-10 w-10 animate-pulse">
-                    <path d="M18 8c0 4.5-6 9-6 9s-6-4.5-6-9a6 6 0 0 1 12 0Z"></path>
-                    <circle cx="12" cy="8" r="2"></circle>
-                  </svg>
-                </div>
-              </div>
+        <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-b from-blue-900 to-blue-700 z-50">
+          <div className="text-center animate-pulse">
+            <div className="mb-6">
+              <Image
+                src="/kinetic-logo.png"
+                alt="Kinetic AI Logo"
+                width={120}
+                height={120}
+                className="mx-auto"
+              />
             </div>
-            <h2 className="text-3xl font-bold mb-2 text-white">Welcome to Kinetic AI, {user?.firstName || 'Patient'}!</h2>
-            <p className="text-blue-200">Preparing your personalized recovery journey...</p>
+            <div className="text-4xl font-bold text-white mb-2">
+              Welcome to Kinetic AI
+            </div>
+            <div className="text-xl text-blue-200">
+              Your personalized recovery journey starts now
+            </div>
           </div>
         </div>
       )}
 
-      {/* Navigation Bar */}
-      <nav className="bg-[#01042A] text-white py-4">
-        <div className="container mx-auto px-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <div className="mr-2">
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="16" cy="16" r="16" fill="#00A3FF" />
-                <path d="M16 8L18.5 13.5L24 14.5L20 18.5L21 24L16 21.5L11 24L12 18.5L8 14.5L13.5 13.5L16 8Z" fill="white" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold">Kinetic AI</span>
-          </div>
-          <div className="hidden md:flex space-x-6">
-            <a href="#features" className="hover:text-blue-300">Features</a>
-            <a href="#how-it-works" className="hover:text-blue-300">How It Works</a>
-            <a href="#success-stories" className="hover:text-blue-300">Success Stories</a>
-            <a href="#resources" className="hover:text-blue-300">Resources</a>
-          </div>
-          <div>
-            <Button
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-              onClick={() => router.push('/dashboard')}
+      {/* Main Content */}
+      <div className="container max-w-4xl mx-auto text-center">
+        <div className="mb-8">
+          <Image
+            src="/kinetic-logo.png"
+            alt="Kinetic AI Logo"
+            width={120}
+            height={120}
+            className="mx-auto"
+          />
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-lg rounded-xl p-8 mb-8 text-white">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">
+            Welcome back, {user?.firstName || 'Patient'}!
+          </h1>
+          <p className="text-xl text-blue-100 mb-8">
+            Let's continue with your personalized AI-powered physiotherapy program.
+          </p>
+          <Button 
+            size="lg" 
+            className="bg-emerald-500 hover:bg-emerald-600 text-white w-full md:w-auto"
+            onClick={() => router.push('/dashboard')}
+          >
+            Continue to Dashboard
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="text-blue-200 text-sm">
+          © {new Date().getFullYear()} Kinetic AI. All rights reserved.
+        </div>
             >
               Sign up
             </Button>

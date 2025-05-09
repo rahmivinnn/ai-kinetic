@@ -97,7 +97,7 @@ export function OverviewTab() {
   });
 
   useEffect(() => {
-    // Simulate loading
+    // Simulate loading with shorter delay
     const timer = setTimeout(() => {
       setIsLoading(false);
       setDashboardStats({
@@ -106,7 +106,7 @@ export function OverviewTab() {
         progress: Math.floor(Math.random() * 40) + 60,
         nextMilestone: Math.floor(Math.random() * 5) + 5
       });
-    }, 1500);
+    }, 800);
 
     return () => clearTimeout(timer);
   }, []);
@@ -166,9 +166,23 @@ export function OverviewTab() {
             </div>
             <h3 className="text-lg font-semibold mb-3">Next Session</h3>
             {isLoading ? (
-              <div className="space-y-2 mb-4">
-                <div className="h-4 bg-muted rounded animate-pulse w-3/4"></div>
-                <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center gap-2 animate-pulse">
+                  <div className="h-10 w-10 rounded-full bg-muted"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-muted rounded w-24"></div>
+                    <div className="h-3 bg-muted rounded w-32"></div>
+                  </div>
+                </div>
+                <div className="p-2 bg-muted/50 rounded-lg animate-pulse">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-muted"></div>
+                    <div className="space-y-1">
+                      <div className="h-3 bg-muted rounded w-20"></div>
+                      <div className="h-2 bg-muted rounded w-24"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : mockAppointments.length > 0 ? (
               <div className="mb-4">
