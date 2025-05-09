@@ -41,6 +41,8 @@ import { toast } from 'sonner';
 
 // API URL - replace with your actual backend URL
 const API_URL = 'http://localhost:5000/api';
+// Set to true to use simulation mode instead of real API
+const USE_SIMULATION = true;
 
 export default function OpenPoseAnalyzerPage() {
   const [activeTab, setActiveTab] = useState('live');
@@ -149,63 +151,272 @@ export default function OpenPoseAnalyzerPage() {
 
   const startWebcam = async () => {
     try {
-      await fetch(`${API_URL}/start_webcam`, {
-        method: 'POST',
-      });
+      if (USE_SIMULATION) {
+        // Simulation mode - use browser's webcam API directly
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
 
-      setIsStreaming(true);
+        // Create a video element to display the stream
+        const videoEl = document.createElement('video');
+        videoEl.srcObject = stream;
+        videoEl.autoplay = true;
+        videoEl.playsInline = true;
 
-      if (streamRef.current) {
-        streamRef.current.src = `${API_URL}/webcam_stream`;
+        // Create a canvas to capture frames from the video
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set dimensions
+        canvas.width = 640;
+        canvas.height = 480;
+
+        // Function to draw video frame to canvas and convert to image
+        const updateCanvas = () => {
+          if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+            ctx?.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+            if (streamRef.current) {
+              streamRef.current.src = canvas.toDataURL('image/jpeg');
+            }
+          }
+          if (isStreaming) {
+            requestAnimationFrame(updateCanvas);
+          }
+        };
+
+        videoEl.onloadedmetadata = () => {
+          updateCanvas();
+        };
+
+        // Store stream reference for cleanup
+        (window as any).openPoseStream = stream;
+        (window as any).openPoseVideo = videoEl;
+
+        setIsStreaming(true);
+
+        toast.success('Webcam started', {
+          description: 'Camera stream is now active (Simulation Mode)',
+          duration: 3000
+        });
+      } else {
+        // Real API mode
+        await fetch(`${API_URL}/start_webcam`, {
+          method: 'POST',
+        });
+
+        setIsStreaming(true);
+
+        if (streamRef.current) {
+          streamRef.current.src = `${API_URL}/webcam_stream`;
+        }
+
+        toast.success('Webcam started', {
+          description: 'Camera stream is now active',
+          duration: 3000
+        });
       }
-
-      toast.success('Webcam started', {
-        description: 'Camera stream is now active',
-        duration: 3000
-      });
     } catch (error) {
       console.error('Error starting webcam:', error);
-      toast.error('Failed to start webcam', {
-        description: 'Please check your camera permissions',
-        duration: 5000
-      });
+
+      // Fallback to simulation if real API fails
+      if (!USE_SIMULATION) {
+        toast.error('Failed to connect to API server', {
+          description: 'Falling back to simulation mode',
+          duration: 5000
+        });
+
+        // Try again with simulation
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          if (streamRef.current) {
+            const videoEl = document.createElement('video');
+            videoEl.srcObject = stream;
+            videoEl.autoplay = true;
+
+            // Store for cleanup
+            (window as any).openPoseStream = stream;
+            (window as any).openPoseVideo = videoEl;
+
+            setIsStreaming(true);
+
+            toast.success('Webcam started (Fallback Mode)', {
+              duration: 3000
+            });
+          }
+        } catch (fallbackError) {
+          toast.error('Failed to start webcam', {
+            description: 'Please check your camera permissions',
+            duration: 5000
+          });
+        }
+      } else {
+        toast.error('Failed to start webcam', {
+          description: 'Please check your camera permissions',
+          duration: 5000
+        });
+      }
     }
   };
 
   const stopWebcam = async () => {
     try {
-      await fetch(`${API_URL}/stop_webcam`, {
-        method: 'POST',
-      });
+      if (USE_SIMULATION) {
+        // Simulation mode - clean up browser webcam resources
+        if ((window as any).openPoseStream) {
+          const stream = (window as any).openPoseStream as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+          (window as any).openPoseStream = null;
+          (window as any).openPoseVideo = null;
+        }
+
+        setIsStreaming(false);
+
+        if (streamRef.current) {
+          streamRef.current.src = '';
+        }
+      } else {
+        // Real API mode
+        await fetch(`${API_URL}/stop_webcam`, {
+          method: 'POST',
+        });
+
+        setIsStreaming(false);
+
+        if (streamRef.current) {
+          streamRef.current.src = '';
+        }
+      }
+    } catch (error) {
+      console.error('Error stopping webcam:', error);
+
+      // Even if API call fails, try to clean up browser resources
+      if ((window as any).openPoseStream) {
+        try {
+          const stream = (window as any).openPoseStream as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+          (window as any).openPoseStream = null;
+          (window as any).openPoseVideo = null;
+        } catch (cleanupError) {
+          console.error('Error cleaning up webcam resources:', cleanupError);
+        }
+      }
 
       setIsStreaming(false);
 
       if (streamRef.current) {
         streamRef.current.src = '';
       }
-    } catch (error) {
-      console.error('Error stopping webcam:', error);
     }
   };
 
   const startAnalysis = async () => {
     try {
-      await fetch(`${API_URL}/start_analysis`, {
-        method: 'POST',
-      });
+      if (USE_SIMULATION) {
+        // Simulation mode - generate mock data
+        setIsAnalyzing(true);
+        setFeedback([]);
 
-      setIsAnalyzing(true);
-      setFeedback([]);
+        // Set initial joint angles
+        setJointAngles({
+          right_knee: 85,
+          left_knee: 87,
+          right_hip: 170,
+          left_hip: 172,
+          right_shoulder: 45,
+          left_shoulder: 43
+        });
 
-      toast.success('Analysis started', {
-        description: 'OpenPose pose detection is now active',
-        duration: 3000
-      });
+        // Set initial confidence scores
+        setConfidenceScores({
+          right_knee: 0.92,
+          left_knee: 0.94,
+          right_hip: 0.88,
+          left_hip: 0.89,
+          right_shoulder: 0.95,
+          left_shoulder: 0.96
+        });
+
+        // Set initial accuracy
+        setAccuracy(85);
+
+        // Start simulation interval for feedback
+        const feedbackMessages = [
+          "Good posture, keep your back straight",
+          "Bend your knees slightly more",
+          "Keep your shoulders relaxed",
+          "Excellent form, maintain this position",
+          "Watch your right knee alignment",
+          "Try to keep your weight centered"
+        ];
+
+        // Store interval ID in window object for cleanup
+        (window as any).openPoseFeedbackInterval = setInterval(() => {
+          // Add random feedback message
+          const newMessage = feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)];
+          setFeedback(prev => [newMessage, ...prev].slice(0, 5));
+
+          // Update joint angles with small variations
+          setJointAngles(prev => {
+            const newAngles = {...prev};
+            Object.keys(newAngles).forEach(key => {
+              const currentValue = newAngles[key as keyof typeof newAngles] as number;
+              const variation = (Math.random() * 10) - 5; // -5 to +5 degrees
+              newAngles[key as keyof typeof newAngles] = Math.max(0, Math.min(180, currentValue + variation));
+            });
+            return newAngles;
+          });
+
+          // Update accuracy with small variations
+          setAccuracy(prev => {
+            const variation = (Math.random() * 6) - 3; // -3 to +3 percent
+            return Math.max(70, Math.min(98, prev + variation));
+          });
+        }, 3000);
+
+        toast.success('Analysis started (Simulation Mode)', {
+          description: 'OpenPose pose detection is now active',
+          duration: 3000
+        });
+      } else {
+        // Real API mode
+        await fetch(`${API_URL}/start_analysis`, {
+          method: 'POST',
+        });
+
+        setIsAnalyzing(true);
+        setFeedback([]);
+
+        toast.success('Analysis started', {
+          description: 'OpenPose pose detection is now active',
+          duration: 3000
+        });
+      }
     } catch (error) {
       console.error('Error starting analysis:', error);
-      toast.error('Failed to start analysis', {
-        duration: 3000
-      });
+
+      if (!USE_SIMULATION) {
+        // Fallback to simulation if real API fails
+        toast.error('Failed to connect to API server', {
+          description: 'Falling back to simulation mode',
+          duration: 3000
+        });
+
+        // Start simulation mode
+        setIsAnalyzing(true);
+        setFeedback(["Simulation mode activated due to API error"]);
+
+        // Set mock data
+        setJointAngles({
+          right_knee: 85,
+          left_knee: 87,
+          right_hip: 170,
+          left_hip: 172
+        });
+
+        setAccuracy(80);
+      } else {
+        toast.error('Failed to start analysis', {
+          duration: 3000
+        });
+      }
     }
   };
 
@@ -213,28 +424,98 @@ export default function OpenPoseAnalyzerPage() {
     if (!isAnalyzing) return;
 
     try {
-      const response = await fetch(`${API_URL}/stop_analysis`, {
-        method: 'POST',
-      });
+      if (USE_SIMULATION) {
+        // Simulation mode - clear intervals and generate summary
+        if ((window as any).openPoseFeedbackInterval) {
+          clearInterval((window as any).openPoseFeedbackInterval);
+          (window as any).openPoseFeedbackInterval = null;
+        }
 
-      const data = await response.json();
-      setIsAnalyzing(false);
+        setIsAnalyzing(false);
 
-      if (data.summary) {
-        setAnalysisSummary(data.summary);
+        // Generate mock analysis summary
+        const mockSummary = {
+          duration: Math.floor(Math.random() * 120) + 60, // 60-180 seconds
+          average_accuracy: Math.floor(Math.random() * 15) + 80, // 80-95%
+          joint_analysis: {
+            knees: {
+              average_angle: Math.floor(Math.random() * 20) + 70, // 70-90 degrees
+              stability: Math.floor(Math.random() * 20) + 75 // 75-95%
+            },
+            hips: {
+              average_angle: Math.floor(Math.random() * 30) + 150, // 150-180 degrees
+              stability: Math.floor(Math.random() * 15) + 80 // 80-95%
+            },
+            shoulders: {
+              average_angle: Math.floor(Math.random() * 20) + 40, // 40-60 degrees
+              stability: Math.floor(Math.random() * 10) + 85 // 85-95%
+            }
+          },
+          recommendations: [
+            "Focus on maintaining consistent knee angles throughout the exercise",
+            "Try to keep your shoulders more relaxed during the movement",
+            "Your hip position is good, continue with this form"
+          ]
+        };
+
+        setAnalysisSummary(mockSummary);
+
+        toast.info('Analysis stopped (Simulation Mode)', {
+          description: 'OpenPose pose detection is now paused',
+          duration: 3000
+        });
+      } else {
+        // Real API mode
+        const response = await fetch(`${API_URL}/stop_analysis`, {
+          method: 'POST',
+        });
+
+        const data = await response.json();
+        setIsAnalyzing(false);
+
+        if (data.summary) {
+          setAnalysisSummary(data.summary);
+        }
+
+        toast.info('Analysis stopped', {
+          description: 'OpenPose pose detection is now paused',
+          duration: 3000
+        });
       }
-
-      toast.info('Analysis stopped', {
-        description: 'OpenPose pose detection is now paused',
-        duration: 3000
-      });
     } catch (error) {
       console.error('Error stopping analysis:', error);
+
+      // Even if API call fails, stop the analysis UI
+      setIsAnalyzing(false);
+
+      // Clear any simulation intervals
+      if ((window as any).openPoseFeedbackInterval) {
+        clearInterval((window as any).openPoseFeedbackInterval);
+        (window as any).openPoseFeedbackInterval = null;
+      }
+
+      // Generate basic summary
+      setAnalysisSummary({
+        duration: 0,
+        average_accuracy: 0,
+        joint_analysis: {},
+        recommendations: ["Analysis was interrupted unexpectedly"]
+      });
+
+      toast.error('Analysis stopped due to an error', {
+        duration: 3000
+      });
     }
   };
 
   const getFeedback = async () => {
     try {
+      // In simulation mode, we don't need to fetch feedback as it's generated by the interval
+      if (USE_SIMULATION) {
+        return;
+      }
+
+      // Real API mode
       const response = await fetch(`${API_URL}/get_feedback`);
       const data = await response.json();
 
@@ -268,6 +549,9 @@ export default function OpenPoseAnalyzerPage() {
       }
     } catch (error) {
       console.error('Error getting feedback:', error);
+
+      // If API call fails in real mode, we could potentially switch to simulation mode here
+      // but we'll leave that for now as the simulation is already handled in startAnalysis
     }
   };
 
