@@ -14,9 +14,29 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Specific redirects for Next.js app
+[[redirects]]
+  from = "/openpose-analyzer"
+  to = "/openpose-analyzer"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/dashboard"
+  to = "/dashboard"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/progress-analytics"
+  to = "/progress-analytics"
+  status = 200
+  force = true
+
+# Fallback redirect for all other routes
 [[redirects]]
   from = "/*"
-  to = "/index.html"
+  to = "/.netlify/functions/next"
   status = 200
 
 # Force clear cache on each build

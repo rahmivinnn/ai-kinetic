@@ -52,6 +52,45 @@ module.exports = {
 }" > tailwind.config.js
 fi
 
+# Ensure public directory exists
+echo "Ensuring public directory exists..."
+mkdir -p public
+
+# Copy _redirects and _headers to public directory to ensure they're included in the build
+echo "Copying _redirects and _headers to public directory..."
+if [ -f public/_redirects ]; then
+  echo "public/_redirects exists, ensuring it has correct content..."
+  # Comment out any existing redirects that might conflict with Next.js
+  sed -i 's/^\/\*.*$/# &/' public/_redirects
+  # Add the correct redirects if they don't exist
+  if ! grep -q "/.netlify/functions/next" public/_redirects; then
+    echo "/* /.netlify/functions/next 200" >> public/_redirects
+  fi
+else
+  echo "Creating public/_redirects..."
+  echo "/* /.netlify/functions/next 200" > public/_redirects
+fi
+
+# Ensure _headers file exists with correct cache control
+if [ ! -f public/_headers ]; then
+  echo "Creating public/_headers..."
+  echo "/*" > public/_headers
+  echo "  Cache-Control: public, max-age=0, must-revalidate" >> public/_headers
+  echo "" >> public/_headers
+  echo "/_next/static/*" >> public/_headers
+  echo "  Cache-Control: public, max-age=31536000, immutable" >> public/_headers
+fi
+
 # Build the application
 echo "Building the application..."
 npm run build
+
+# Post-build checks
+echo "Performing post-build checks..."
+if [ -d ".next" ]; then
+  echo ".next directory exists, build seems successful."
+else
+  echo "WARNING: .next directory does not exist, build may have failed."
+fi
+
+echo "Build process completed."
