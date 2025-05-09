@@ -10,24 +10,28 @@ const nextConfig = {
     // your project has TypeScript errors.
     ignoreBuildErrors: true,
   },
+  // Output as static site for Netlify
+  output: 'export',
+  // Don't use trailing slash for cleaner URLs
+  trailingSlash: false,
+  // Image configuration for static export
   images: {
     domains: ['images.unsplash.com', 'api.dicebear.com'],
+    unoptimized: true,
   },
-  // Fix for Netlify deployment - ensure all routes work correctly
-  trailingSlash: false,
-  // Ensure all paths are properly handled
-  async rewrites() {
-    return [
-      {
-        source: '/:path*',
-        destination: '/:path*',
-      },
-      {
-        source: '/openpose-analyzer',
-        destination: '/openpose-analyzer',
-      },
-    ];
-  },
+  // Disable rewrites for static export
+  // async rewrites() {
+  //   return [
+  //     {
+  //       source: '/:path*',
+  //       destination: '/:path*',
+  //     },
+  //     {
+  //       source: '/openpose-analyzer',
+  //       destination: '/openpose-analyzer',
+  //     },
+  //   ];
+  // },
 };
 
 module.exports = nextConfig;
