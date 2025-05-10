@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Box, LayoutSplit, Layers, Stop } from 'lucide-react';
 
 // Define the PoseAnalysis component props
 interface PoseAnalysisProps {
@@ -178,15 +178,87 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
     loadScripts();
 
     // Cleanup function
-    return () => {
-      // Stop camera if active
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        const tracks = stream.getTracks();
-        tracks.forEach(track => track.stop());
-      }
-    };
-  }, []);
+    // Cleanup function for MediaPipe useEffect
+  return () => {
+    // Stop camera if active
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+  };
+}, []);
+
+const togglePlayPause = () => {
+  if (videoRef.current) {
+    if (videoPlaybackState.isPlaying) {
+      videoRef.current.pause();
+      setVideoPlaybackState(prev => ({ ...prev, isPlaying: false }));
+    } else {
+      videoRef.current.play();
+      setVideoPlaybackState(prev => ({ ...prev, isPlaying: true }));
+    }
+  }
+};
+
+const handleVideoTimeUpdate = () => {
+  if (videoRef.current) {
+    setVideoPlaybackState(prev => ({
+      ...prev,
+      currentTime: videoRef.current.currentTime
+    }));
+  }
+};
+
+const handleVideoLoadedMetadata = () => {
+  if (videoRef.current) {
+    setVideoPlaybackState(prev => ({
+      ...prev,
+      duration: videoRef.current.duration
+    }));
+  }
+};
+
+const handleVolumeChange = (value: number) => {
+  if (videoRef.current) {
+    videoRef.current.volume = value;
+    setVideoPlaybackState(prev => ({ ...prev, volume: value }));
+  }
+};
+
+const handlePlaybackRateChange = (value: number) => {
+  if (videoRef.current) {
+    videoRef.current.playbackRate = value;
+    setVideoPlaybackState(prev => ({ ...prev, playbackRate: value }));
+  }
+};
+
+const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    videoRef.current?.requestFullscreen();
+    setVideoPlaybackState(prev => ({ ...prev, isFullscreen: true }));
+  } else {
+    document.exitFullscreen();
+    setVideoPlaybackState(prev => ({ ...prev, isFullscreen: false }));
+  }
+};
+
+const formatTime = (time: number) => {
+  const minutes = Math.floor(time / 60);
+  const seconds = Math.floor(time % 60);
+  return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+};
+
+const startAnalysis = () => {
+  setIsAnalyzing(true);
+  // Add analysis logic here
+};
+
+const stopAnalysis = () => {
+  setIsAnalyzing(false);
+  // Add cleanup logic here
+};
+
 
   return (
     <div className="relative w-full h-full">
@@ -873,7 +945,50 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
     animate();
     
     // Cleanup
-    return (
+    const handleVideoTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+    if (videoRef.current) {
+      videoRef.current.volume = value;
+    }
+  };
+
+  const handlePlaybackRateChange = (value: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = value;
+    }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  const startAnalysis = () => {
+    setIsAnalyzing(true);
+  };
+
+  const stopAnalysis = () => {
+    setIsAnalyzing(false);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  return (
     <div className="relative w-full h-full">
       {/* Video Player Container with enhanced visuals */}
       <div 
@@ -1978,7 +2093,50 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
   };
 
   if (!isMediaPipeSupported || !isOpenPoseSupported) {
-    return (
+    const handleVideoTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+    if (videoRef.current) {
+      videoRef.current.volume = value;
+    }
+  };
+
+  const handlePlaybackRateChange = (value: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = value;
+    }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  const startAnalysis = () => {
+    setIsAnalyzing(true);
+  };
+
+  const stopAnalysis = () => {
+    setIsAnalyzing(false);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  return (
     <div className="relative w-full h-full">
       {/* Video Player Container with enhanced visuals */}
       <div 
@@ -2292,6 +2450,49 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
       </div>
     );
   }
+
+  const handleVideoTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+    if (videoRef.current) {
+      videoRef.current.volume = value;
+    }
+  };
+
+  const handlePlaybackRateChange = (value: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = value;
+    }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  const startAnalysis = () => {
+    setIsAnalyzing(true);
+  };
+
+  const stopAnalysis = () => {
+    setIsAnalyzing(false);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
 
   return (
     <div className="relative w-full h-full">
@@ -2794,7 +2995,50 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
                     if (partScore < 70) colorClass = 'bg-yellow-500';
                     if (partScore < 50) colorClass = 'bg-red-500';
 
-                    return (
+                    const handleVideoTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+    if (videoRef.current) {
+      videoRef.current.volume = value;
+    }
+  };
+
+  const handlePlaybackRateChange = (value: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = value;
+    }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  const startAnalysis = () => {
+    setIsAnalyzing(true);
+  };
+
+  const stopAnalysis = () => {
+    setIsAnalyzing(false);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  return (
     <div className="relative w-full h-full">
       {/* Video Player Container with enhanced visuals */}
       <div 
@@ -3124,7 +3368,50 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
                     icon = <AlertTriangle className="h-5 w-5 text-yellow-600" />;
                   }
 
-                  return (
+                  const handleVideoTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
+  };
+
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+    if (videoRef.current) {
+      videoRef.current.volume = value;
+    }
+  };
+
+  const handlePlaybackRateChange = (value: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = value;
+    }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  const startAnalysis = () => {
+    setIsAnalyzing(true);
+  };
+
+  const stopAnalysis = () => {
+    setIsAnalyzing(false);
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  return (
     <div className="relative w-full h-full">
       {/* Video Player Container with enhanced visuals */}
       <div 
