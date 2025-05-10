@@ -50,11 +50,9 @@ const nextConfig = {
   webpack: (config) => {
     return config;
   },
-  // Development server configuration
-  devServer: {
-    port: 12000,
-    host: '0.0.0.0',
-    allowedHosts: ['*'],
+  // Allow cross-origin requests during development
+  experimental: {
+    allowedDevOrigins: ['work-1-euwpsiogmcelmqkv.prod-runtime.all-hands.dev', 'work-2-euwpsiogmcelmqkv.prod-runtime.all-hands.dev'],
   },
 };
 
