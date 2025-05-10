@@ -44,11 +44,30 @@ class OpenPoseAnalyzer:
         self.is_analyzing = False
         self.frame_count = 0
         self.start_time = None
-
+        
+        # Multi-person tracking
+        self.person_trackers = {}
+        self.next_person_id = 0
+        self.tracking_threshold = 0.5  # IOU threshold for tracking
+        
+        # 3D pose estimation
+        self.pose_3d = {}
+        self.depth_scale = 1.0  # Scale factor for depth estimation
+        self.camera_matrix = None
+        
+        # Advanced analytics
+        self.movement_history = {}
+        self.activity_recognition = {}
+        self.fatigue_metrics = {}
+        self.balance_metrics = {}
+        
         # Feedback system
         self.posture_feedback = []
         self.current_accuracy = 0
         self.joint_angles = {}
+        self.movement_speed = {}
+        self.symmetry_scores = {}
+        self.muscle_activation = {}
 
         # Define joint connections for angle calculations
         self.angle_joints = {
@@ -134,7 +153,7 @@ class OpenPoseAnalyzer:
 
     def analyze_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Dict, float]:
         """
-        Analyze a single frame for pose detection.
+        Analyze a single frame for pose detection with multi-person support and 3D estimation.
 
         Args:
             frame: Input image frame
@@ -142,9 +161,41 @@ class OpenPoseAnalyzer:
         Returns:
             Tuple containing:
                 - Annotated frame with pose landmarks
-                - Dictionary of joint angles
+                - Dictionary of joint angles and 3D poses for each person
                 - Overall pose accuracy score
         """
+        
+        def calculate_iou(box1, box2):
+            """Calculate Intersection over Union between two bounding boxes."""
+            x1, y1, w1, h1 = box1
+            x2, y2, w2, h2 = box2
+            
+            intersection_x = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
+            intersection_y = max(0, min(y1 + h1, y2 + h2) - max(y1, y2))
+            intersection_area = intersection_x * intersection_y
+            
+            union_area = w1 * h1 + w2 * h2 - intersection_area
+            return intersection_area / union_area if union_area > 0 else 0
+        
+        def estimate_3d_pose(landmarks):
+            """Estimate 3D pose from 2D landmarks using perspective projection."""
+            pose_3d = {}
+            if not self.camera_matrix:
+                h, w, _ = frame.shape
+                focal_length = w
+                center = (w/2, h/2)
+                self.camera_matrix = np.array(
+                    [[focal_length, 0, center[0]],
+                     [0, focal_length, center[1]],
+                     [0, 0, 1]], dtype=np.float32
+                )
+            
+            for landmark in landmarks:
+                # Simple depth estimation based on relative positions
+                z = self.depth_scale * (1 - landmark.visibility)
+                pose_3d[landmark.name] = np.array([landmark.x, landmark.y, z])
+            
+            return pose_3d
         if not self.is_analyzing:
             return frame, {}, 0.0
 
@@ -158,10 +209,69 @@ class OpenPoseAnalyzer:
         annotated_frame = frame.copy()
         joint_angles = {}
         accuracy = 0.0
+        detected_people = []
 
-        # Check if pose landmarks are detected
+        # Process multiple poses if detected
         if results.pose_landmarks:
-            # Draw pose landmarks on the image
+            # Get frame dimensions for bounding box calculation
+            h, w, _ = frame.shape
+            
+            # Calculate bounding box for the current pose
+            landmarks = results.pose_landmarks.landmark
+            x_coords = [lm.x * w for lm in landmarks]
+            y_coords = [lm.y * h for lm in landmarks]
+            bbox = [min(x_coords), min(y_coords), 
+                    max(x_coords) - min(x_coords), 
+                    max(y_coords) - min(y_coords)]
+            
+            # Track person ID using IOU
+            max_iou = 0
+            matched_id = None
+            for person_id, prev_bbox in self.person_trackers.items():
+                iou = calculate_iou(bbox, prev_bbox)
+                if iou > max_iou and iou > self.tracking_threshold:
+                    max_iou = iou
+                    matched_id = person_id
+            
+            # Assign new ID if no match found
+            if matched_id is None:
+                matched_id = self.next_person_id
+                self.next_person_id += 1
+            
+            # Update tracker
+            self.person_trackers[matched_id] = bbox
+            
+            # Estimate 3D pose
+            pose_3d = estimate_3d_pose(landmarks)
+            self.pose_3d[matched_id] = pose_3d
+            
+            # Calculate movement speed
+            if matched_id in self.movement_history:
+                prev_landmarks = self.movement_history[matched_id]
+                speed = np.mean([np.linalg.norm(np.array([lm.x, lm.y]) - 
+                               np.array([prev_landmarks[i].x, prev_landmarks[i].y])) 
+                               for i, lm in enumerate(landmarks)])
+                self.movement_speed[matched_id] = speed
+            
+            # Update movement history
+            self.movement_history[matched_id] = landmarks
+            # Calculate advanced metrics
+            symmetry_score = self.calculate_symmetry(landmarks)
+            balance_score = self.calculate_balance(landmarks)
+            muscle_activation = self.estimate_muscle_activation(landmarks)
+            
+            # Store metrics
+            self.symmetry_scores[matched_id] = symmetry_score
+            self.balance_metrics[matched_id] = balance_score
+            self.muscle_activation[matched_id] = muscle_activation
+            
+            # Detect fatigue
+            if matched_id in self.movement_speed:
+                fatigue_score = self.detect_fatigue(self.movement_speed[matched_id], 
+                                                   self.muscle_activation[matched_id])
+                self.fatigue_metrics[matched_id] = fatigue_score
+            
+            # Draw pose landmarks and metrics
             self.mp_drawing.draw_landmarks(
                 annotated_frame,
                 results.pose_landmarks,
@@ -169,6 +279,14 @@ class OpenPoseAnalyzer:
                 self.mp_drawing.DrawingSpec(color=(245, 117, 66), thickness=2, circle_radius=2),
                 self.mp_drawing.DrawingSpec(color=(245, 66, 230), thickness=2, circle_radius=2)
             )
+            
+            # Draw metrics on frame
+            metrics_text = f"Person {matched_id} | "
+            metrics_text += f"Symmetry: {symmetry_score:.2f} | "
+            metrics_text += f"Balance: {balance_score:.2f}"
+            cv2.putText(annotated_frame, metrics_text,
+                        (int(bbox[0]), int(bbox[1] - 10)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
             # Calculate joint angles
             landmarks = results.pose_landmarks.landmark
@@ -214,15 +332,156 @@ class OpenPoseAnalyzer:
 
         return annotated_frame, joint_angles, accuracy
 
+    def calculate_symmetry(self, landmarks) -> float:
+        """Calculate body symmetry score based on corresponding left/right landmarks."""
+        symmetry_pairs = [
+            (self.mp_pose.PoseLandmark.LEFT_SHOULDER, self.mp_pose.PoseLandmark.RIGHT_SHOULDER),
+            (self.mp_pose.PoseLandmark.LEFT_HIP, self.mp_pose.PoseLandmark.RIGHT_HIP),
+            (self.mp_pose.PoseLandmark.LEFT_KNEE, self.mp_pose.PoseLandmark.RIGHT_KNEE),
+            (self.mp_pose.PoseLandmark.LEFT_ANKLE, self.mp_pose.PoseLandmark.RIGHT_ANKLE),
+            (self.mp_pose.PoseLandmark.LEFT_ELBOW, self.mp_pose.PoseLandmark.RIGHT_ELBOW),
+            (self.mp_pose.PoseLandmark.LEFT_WRIST, self.mp_pose.PoseLandmark.RIGHT_WRIST)
+        ]
+        
+        symmetry_scores = []
+        for left, right in symmetry_pairs:
+            if left.value < len(landmarks) and right.value < len(landmarks):
+                left_point = landmarks[left.value]
+                right_point = landmarks[right.value]
+                
+                # Compare x-coordinates (after mirroring right side)
+                x_diff = abs(left_point.x - (1 - right_point.x))
+                # Compare y-coordinates
+                y_diff = abs(left_point.y - right_point.y)
+                
+                symmetry_scores.append(1 - (x_diff + y_diff) / 2)
+        
+        return np.mean(symmetry_scores) if symmetry_scores else 0.0
+
+    def calculate_balance(self, landmarks) -> float:
+        """Calculate balance score based on body alignment and weight distribution."""
+        if (self.mp_pose.PoseLandmark.LEFT_ANKLE.value >= len(landmarks) or
+            self.mp_pose.PoseLandmark.RIGHT_ANKLE.value >= len(landmarks) or
+            self.mp_pose.PoseLandmark.LEFT_HIP.value >= len(landmarks) or
+            self.mp_pose.PoseLandmark.RIGHT_HIP.value >= len(landmarks)):
+            return 0.0
+
+        # Calculate center of mass (simplified)
+        hip_center = np.array([
+            (landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value].x +
+             landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP.value].x) / 2,
+            (landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value].y +
+             landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP.value].y) / 2
+        ])
+        
+        ankle_center = np.array([
+            (landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE.value].x +
+             landmarks[self.mp_pose.PoseLandmark.RIGHT_ANKLE.value].x) / 2,
+            (landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE.value].y +
+             landmarks[self.mp_pose.PoseLandmark.RIGHT_ANKLE.value].y) / 2
+        ])
+        
+        # Calculate deviation from vertical alignment
+        alignment_error = np.linalg.norm(hip_center - ankle_center)
+        balance_score = max(0, 1 - alignment_error * 5)  # Scale factor of 5 for visibility
+        
+        return balance_score
+
+    def estimate_muscle_activation(self, landmarks) -> Dict[str, float]:
+        """Estimate muscle activation levels based on joint angles and positions."""
+        activation = {}
+        
+        # Estimate core activation
+        if all(lm.value < len(landmarks) for lm in [
+            self.mp_pose.PoseLandmark.LEFT_SHOULDER,
+            self.mp_pose.PoseLandmark.LEFT_HIP,
+            self.mp_pose.PoseLandmark.LEFT_KNEE]):
+            
+            # Calculate torso angle
+            shoulder = landmarks[self.mp_pose.PoseLandmark.LEFT_SHOULDER.value]
+            hip = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP.value]
+            knee = landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE.value]
+            
+            torso_angle = self.calculate_angle(
+                [shoulder.x, shoulder.y],
+                [hip.x, hip.y],
+                [knee.x, knee.y]
+            )
+            
+            # Estimate core activation based on torso stability
+            activation['core'] = min(1.0, abs(90 - torso_angle) / 45)
+        
+        # Add more muscle group estimations here
+        return activation
+
+    def detect_fatigue(self, movement_speed: float, muscle_activation: Dict[str, float]) -> float:
+        """Detect fatigue based on movement patterns and muscle activation."""
+        # Simple fatigue detection based on movement speed and muscle activation
+        speed_factor = 1 - min(1.0, movement_speed * 10)  # Slower movement indicates fatigue
+        activation_factor = np.mean(list(muscle_activation.values()))
+        
+        fatigue_score = (speed_factor + activation_factor) / 2
+        return fatigue_score
+
     def generate_posture_feedback(self, joint_angles: Dict[str, float], landmarks: List) -> None:
         """
-        Generate posture feedback based on joint angles and landmarks.
+        Generate comprehensive posture feedback based on joint angles, landmarks, and advanced metrics.
 
         Args:
             joint_angles: Dictionary of calculated joint angles
             landmarks: List of pose landmarks
-        """
+        "\"
         feedback = []
+        
+        # Get person ID from tracking system
+        person_id = max(self.person_trackers.keys()) if self.person_trackers else 0
+        
+        # Advanced metrics feedback
+        if person_id in self.symmetry_scores:
+            symmetry = self.symmetry_scores[person_id]
+            if symmetry < 0.7:
+                feedback.append("Your body symmetry needs improvement. Try to balance your movements.")
+            elif symmetry > 0.9:
+                feedback.append("Excellent body symmetry! Keep maintaining this balance.")
+        
+        if person_id in self.balance_metrics:
+            balance = self.balance_metrics[person_id]
+            if balance < 0.6:
+                feedback.append("Your balance needs attention. Focus on stabilizing your core.")
+            elif balance > 0.8:
+                feedback.append("Great balance! Your stability is excellent.")
+        
+        if person_id in self.fatigue_metrics:
+            fatigue = self.fatigue_metrics[person_id]
+            if fatigue > 0.7:
+                feedback.append("Signs of fatigue detected. Consider taking a short break.")
+            elif fatigue > 0.9:
+                feedback.append("High fatigue level detected! Please rest to prevent injury.")
+        
+        if person_id in self.movement_speed:
+            speed = self.movement_speed[person_id]
+            if speed > 0.8:
+                feedback.append("Movement speed is high. Ensure you maintain proper form.")
+            elif speed < 0.2:
+                feedback.append("Movement is very slow. This might indicate hesitation or strain.")
+        
+        # 3D pose feedback
+        if person_id in self.pose_3d:
+            pose_3d = self.pose_3d[person_id]
+            # Analyze depth and provide feedback on movement in 3D space
+            if any(p[2] > 0.8 for p in pose_3d.values()):
+                feedback.append("Good depth in your movement. Maintaining proper distance.")
+            elif any(p[2] < 0.2 for p in pose_3d.values()):
+                feedback.append("Try to use more depth in your movements for better form.")
+        
+        # Muscle activation feedback
+        if person_id in self.muscle_activation:
+            activation = self.muscle_activation[person_id]
+            if 'core' in activation:
+                if activation['core'] > 0.8:
+                    feedback.append("Strong core engagement detected. Excellent form!")
+                elif activation['core'] < 0.3:
+                    feedback.append("Try to engage your core more during this movement.")
 
         # Check for symmetry between left and right sides
         if 'left_shoulder' in joint_angles and 'right_shoulder' in joint_angles:

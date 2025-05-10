@@ -12,11 +12,44 @@ interface PoseAnalysisProps {
   videoUrl?: string;
   onAnalysisComplete?: (results: any) => void;
   mode?: 'live' | 'upload';
+  referenceVideoUrl?: string;
+  enableVoiceFeedback?: boolean;
+  showAdvancedMetrics?: boolean;
 }
 
-export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: PoseAnalysisProps) {
+interface PoseMetrics {
+  symmetryScore: number;
+  balanceScore: number;
+  stabilityScore: number;
+  alignmentScore: number;
+  overallScore: number;
+  jointAngles: Record<string, number>;
+  movementQuality: number;
+  energyEfficiency: number;
+  formConsistency: number;
+  rangeOfMotion: number;
+  performanceHistory: Array<{
+    timestamp: number;
+    score: number;
+    metrics: Record<string, number>;
+  }>;
+}
+
+interface Exercise {
+  name: string;
+  targetAngles: Record<string, number>;
+  tolerance: number;
+  instructions: string[];
+}
+
+export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', referenceVideoUrl, enableVoiceFeedback = false, showAdvancedMetrics = false }: PoseAnalysisProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvas3DRef = useRef<HTMLCanvasElement>(null);
+  const referenceVideoRef = useRef<HTMLVideoElement>(null);
+  const speechSynthesisRef = useRef<SpeechSynthesis | null>(null);
+  const animationFrameRef = useRef<number>();
+  
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<any>(null);
@@ -28,7 +61,69 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
   const [isOpenPoseSupported, setIsOpenPoseSupported] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
   const [detectionMethod, setDetectionMethod] = useState<'mediapipe' | 'openpose'>('mediapipe');
+  const [poseMetrics, setPoseMetrics] = useState<PoseMetrics>({ 
+    symmetryScore: 0,
+    balanceScore: 0,
+    stabilityScore: 0,
+    alignmentScore: 0,
+    overallScore: 0,
+    jointAngles: {},
+    movementQuality: 0,
+    energyEfficiency: 0,
+    formConsistency: 0,
+    rangeOfMotion: 0,
+    performanceHistory: []
+  });
+  
+  // 3D Visualization settings
+  const [visualization3D, setVisualization3D] = useState({
+    rotationX: 0,
+    rotationY: 0,
+    zoom: 1,
+    autoRotate: false,
+    showSkeleton: true,
+    showMuscles: false,
+    highlightIssues: true
+  });
+
+  // Enhanced feedback settings
+  const [feedbackSettings, setFeedbackSettings] = useState({
+    showRealtime: true,
+    voiceFeedback: enableVoiceFeedback,
+    vibrationFeedback: false,
+    detailedAnalysis: showAdvancedMetrics,
+    highlightCorrections: true
+  });
+
+  // Performance tracking
+  const [performanceStats, setPerformanceStats] = useState({
+    sessionsCompleted: 0,
+    totalExerciseTime: 0,
+    personalBests: {},
+    recentProgress: [],
+    achievementPoints: 0
+  });
+  const [currentExercise, setCurrentExercise] = useState<Exercise | null>(null);
+  const [show3DView, setShow3DView] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
+  const [audioFeedback, setAudioFeedback] = useState(enableVoiceFeedback);
+  const [videoPlaybackState, setVideoPlaybackState] = useState({
+    isPlaying: false,
+    currentTime: 0,
+    duration: 0,
+    volume: 1,
+    playbackRate: 1,
+    isFullscreen: false
+  });
+  const [showSideBySide, setShowSideBySide] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [overlayOpacity, setOverlayOpacity] = useState(0.5);
+  const [showControls, setShowControls] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  
   const openPoseNetRef = useRef<any>(null);
+  const poseHistoryRef = useRef<any[]>([]);
+  const lastFeedbackTimeRef = useRef<number>(0);
 
   // Load MediaPipe scripts
   useEffect(() => {
@@ -83,7 +178,296 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
     loadScripts();
 
     // Cleanup function
-    return () => {
+    return (
+    <div className="relative w-full h-full">
+      {/* Video Player Container with enhanced visuals */}
+      <div 
+        className={`relative w-full aspect-video bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden shadow-lg transition-all duration-500 ${isTransitioning ? 'scale-95 opacity-90 rotate-1' : 'scale-100 opacity-100 rotate-0'} hover:shadow-2xl`}
+        style={{
+          transform: `perspective(1000px) ${isTransitioning ? 'rotateX(2deg)' : 'rotateX(0deg)'}`
+        }}
+        onMouseEnter={() => {
+          setShowControls(true);
+          setIsTransitioning(true);
+          setTimeout(() => setIsTransitioning(false), 300);
+        }}
+        onMouseLeave={() => setShowControls(false)}
+      >
+        {/* Main Video */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleVideoTimeUpdate}
+          onLoadedMetadata={handleVideoLoadedMetadata}
+        />
+
+        {/* Reference Video (if in comparison mode) */}
+        {(showSideBySide || showOverlay) && (
+          <video
+            ref={referenceVideoRef}
+            className={`absolute top-0 ${showSideBySide ? 'right-0 w-1/2' : 'left-0 w-full opacity-50'} h-full object-contain`}
+          />
+        )}
+
+        {/* Canvas Overlay */}
+        <canvas
+          ref={canvasRef}
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        />
+
+        {/* 3D View Canvas */}
+        {show3DView && (
+          <canvas
+            ref={canvas3DRef}
+            className="absolute top-0 right-0 w-1/3 h-1/3 bg-black/30 rounded-bl-lg"
+          />
+        )}
+
+        {/* Video Controls */}
+        <div 
+          className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {/* Progress Bar */}
+          <div className="w-full h-1 bg-white/30 rounded-full mb-4 cursor-pointer">
+            <div 
+              className="h-full bg-primary rounded-full relative"
+              style={{ width: `${(videoPlaybackState.currentTime / videoPlaybackState.duration) * 100}%` }}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full transform scale-0 hover:scale-100 transition-transform" />
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={togglePlayPause}
+              >
+                {videoPlaybackState.isPlaying ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6" />
+                )}
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm">
+                  {formatTime(videoPlaybackState.currentTime)} / {formatTime(videoPlaybackState.duration)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 group relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-primary"
+                >
+                  <Volume2 className="h-5 w-5" />
+                </Button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block">
+                  <div className="bg-black/90 rounded-lg p-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={videoPlaybackState.volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Playback Rate */}
+              <select
+                value={videoPlaybackState.playbackRate}
+                onChange={(e) => handlePlaybackRateChange(parseFloat(e.target.value))}
+                className="bg-transparent text-white text-sm border-none outline-none"
+              >
+                <option value="0.5">0.5x</option>
+                <option value="1">1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+
+              {/* Comparison Controls */}
+              {referenceVideoUrl && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showSideBySide ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowSideBySide(!showSideBySide);
+                      setShowOverlay(false);
+                    }}
+                  >
+                    <LayoutSplit className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showOverlay ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowOverlay(!showOverlay);
+                      setShowSideBySide(false);
+                    }}
+                  >
+                    <Layers className="h-5 w-5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* 3D View Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`text-white hover:text-primary ${show3DView ? 'text-primary' : ''}`}
+                onClick={() => setShow3DView(!show3DView)}
+              >
+                <Box className="h-5 w-5" />
+              </Button>
+
+              {/* Fullscreen Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={toggleFullscreen}
+              >
+                {videoPlaybackState.isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Analysis Controls */}
+      <div className="mt-6 space-y-4 transform transition-all duration-300 hover:scale-[1.02]">
+        <div className="flex items-center justify-between bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <Button
+              variant={isAnalyzing ? 'destructive' : 'default'}
+              onClick={isAnalyzing ? stopAnalysis : startAnalysis}
+              className={`relative overflow-hidden transform transition-all duration-300 ${isAnalyzing ? 'animate-pulse shadow-red-500/50' : 'hover:scale-105 shadow-primary/50'} shadow-lg`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Stop className="h-5 w-5 mr-2" />
+                  Stop Analysis
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  Start Analysis
+                </>
+              )}
+              {isAnalyzing && (
+                <div
+                  className="absolute inset-0 bg-white/20"
+                  style={{
+                    transform: `translateX(${progress}%)",
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                />
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('mediapipe')}
+                className={detectionMethod === 'mediapipe' ? 'border-primary text-primary' : ''}
+              >
+                <Activity className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('openpose')}
+                className={detectionMethod === 'openpose' ? 'border-primary text-primary' : ''}
+              >
+                <Zap className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setAudioFeedback(!audioFeedback)}
+              className={audioFeedback ? 'border-primary text-primary' : ''}
+            >
+              {audioFeedback ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
+              className={showAdvancedMetrics ? 'border-primary text-primary' : ''}
+            >
+              <BarChart2 className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Feedback Display */}
+        <div className="space-y-2 perspective-1000">
+          {feedback.map((message, index) => (
+            <div
+              key={index}
+              className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm flex items-start gap-3 transform transition-all duration-500 hover:scale-[1.02] hover:-rotate-1 shadow-lg"
+              style={{
+                animation: `slideIn 0.5s ease-out ${index * 0.1}s both`,
+                opacity: 0,
+                transform: 'translateY(20px)'
+              }}
+            >
+              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{message}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Metrics Display */}
+        {showAdvancedMetrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <MetricCard
+              title="Symmetry"
+              value={poseMetrics.symmetryScore}
+              icon={<Balance className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Balance"
+              value={poseMetrics.balanceScore}
+              icon={<Activity className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Stability"
+              value={poseMetrics.stabilityScore}
+              icon={<Anchor className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Alignment"
+              value={poseMetrics.alignmentScore}
+              icon={<AlignCenter className="h-5 w-5" />}
+            />
+          </div>
+        )}
+      </div>
+    </div>) => {
       // Stop camera if active
       if (videoRef.current && videoRef.current.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream;
@@ -182,6 +566,670 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
       videoRef.current.srcObject = null;
       setCameraActive(false);
       toast.info('Camera stopped');
+    }
+  };
+
+  // Initialize speech synthesis
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      speechSynthesisRef.current = window.speechSynthesis;
+    }
+  }, []);
+
+  // Provide audio feedback
+  const speakFeedback = (message: string) => {
+    if (audioFeedback && speechSynthesisRef.current) {
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = 'id-ID';
+      speechSynthesisRef.current.speak(utterance);
+    }
+  };
+
+  // Calculate pose metrics
+  const calculatePoseMetrics = (pose: any) => {
+    const metrics: PoseMetrics = {
+      symmetryScore: calculateSymmetryScore(pose),
+      balanceScore: calculateBalanceScore(pose),
+      stabilityScore: calculateStabilityScore(pose),
+      alignmentScore: calculateAlignmentScore(pose),
+      overallScore: 0,
+      jointAngles: calculateJointAngles(pose)
+    };
+    
+    metrics.overallScore = (metrics.symmetryScore + metrics.balanceScore + 
+      metrics.stabilityScore + metrics.alignmentScore) / 4;
+    
+    return metrics;
+  };
+
+  // Calculate symmetry score
+  const calculateSymmetryScore = (pose: any) => {
+    // Implement symmetry calculation logic
+    return 0.8; // Placeholder
+  };
+
+  // Calculate balance score
+  const calculateBalanceScore = (pose: any) => {
+    // Implement balance calculation logic
+    return 0.75; // Placeholder
+  };
+
+  // Calculate stability score
+  const calculateStabilityScore = (pose: any) => {
+    // Implement stability calculation logic using pose history
+    return 0.9; // Placeholder
+  };
+
+  // Calculate alignment score
+  const calculateAlignmentScore = (pose: any) => {
+    // Implement alignment calculation logic
+    return 0.85; // Placeholder
+  };
+
+  // Calculate joint angles
+  const calculateJointAngles = (pose: any) => {
+    const angles: Record<string, number> = {};
+    // Implement joint angle calculations
+    return angles;
+  };
+
+  // Enhanced pose comparison with advanced visualization
+  const compareWithReference = async () => {
+    if (!referenceVideoRef.current || !currentExercise) return;
+    
+    setIsTransitioning(true);
+    
+    // Setup comparison view based on mode
+    if (showSideBySide) {
+      // Side by side view setup
+      const mainCanvas = canvasRef.current!;
+      const refCanvas = document.createElement('canvas');
+      refCanvas.width = mainCanvas.width / 2;
+      refCanvas.height = mainCanvas.height;
+      
+      const mainCtx = mainCanvas.getContext('2d')!;
+      const refCtx = refCanvas.getContext('2d')!;
+      
+      // Draw current video
+      mainCtx.drawImage(
+        videoRef.current!,
+        0, 0, mainCanvas.width / 2, mainCanvas.height
+      );
+      
+      // Draw reference video
+      mainCtx.drawImage(
+        referenceVideoRef.current!,
+        mainCanvas.width / 2, 0, mainCanvas.width / 2, mainCanvas.height
+      );
+      
+      // Add divider line with animation
+      mainCtx.beginPath();
+      mainCtx.moveTo(mainCanvas.width / 2, 0);
+      mainCtx.lineTo(mainCanvas.width / 2, mainCanvas.height);
+      mainCtx.strokeStyle = '#00ff00';
+      mainCtx.lineWidth = 2;
+      mainCtx.stroke();
+      
+    } else if (showOverlay) {
+      // Overlay view setup
+      const ctx = canvasRef.current!.getContext('2d')!;
+      
+      // Draw current video
+      ctx.drawImage(videoRef.current!, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+      
+      // Draw reference video with opacity
+      ctx.globalAlpha = overlayOpacity;
+      ctx.drawImage(referenceVideoRef.current!, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+      ctx.globalAlpha = 1.0;
+    }
+    
+    // Calculate pose similarity
+    const currentPose = await detectPose(videoRef.current!);
+    const referencePose = await detectPose(referenceVideoRef.current!);
+    
+    const similarity = calculatePoseSimilarity(currentPose, referencePose);
+    const angleErrors = findAngleErrors(currentPose, referencePose);
+    
+    // Generate detailed feedback
+    const feedbackMessages = [];
+    
+    if (similarity < currentExercise.tolerance) {
+      angleErrors.forEach(error => {
+        feedbackMessages.push(
+          `Sesuaikan sudut ${error.joint}: perbedaan ${error.difference.toFixed(1)}°`
+        );
+      });
+    }
+    
+    // Update feedback with animation
+    setFeedback(prev => {
+      const newFeedback = [...feedbackMessages];
+      setTimeout(() => setIsTransitioning(false), 300);
+      return newFeedback;
+    });
+    
+    // Provide audio feedback
+    if (feedbackMessages.length > 0) {
+      speakFeedback(feedbackMessages[0]);
+    }
+  };
+  
+  // Calculate pose similarity
+  const calculatePoseSimilarity = (pose1: any, pose2: any) => {
+    let totalSimilarity = 0;
+    let count = 0;
+    
+    // Compare joint positions
+    pose1.keypoints.forEach((kp1: any, i: number) => {
+      const kp2 = pose2.keypoints[i];
+      if (kp1.score > 0.5 && kp2.score > 0.5) {
+        const distance = Math.sqrt(
+          Math.pow(kp1.x - kp2.x, 2) + Math.pow(kp1.y - kp2.y, 2)
+        );
+        totalSimilarity += 1 / (1 + distance);
+        count++;
+      }
+    });
+    
+    return count > 0 ? totalSimilarity / count : 0;
+  };
+  
+  // Find angle errors between poses
+  const findAngleErrors = (pose1: any, pose2: any) => {
+    const errors = [];
+    const joints = ['shoulder', 'elbow', 'hip', 'knee'];
+    
+    joints.forEach(joint => {
+      const angle1 = calculateJointAngle(pose1, joint);
+      const angle2 = calculateJointAngle(pose2, joint);
+      
+      if (Math.abs(angle1 - angle2) > 15) { // 15 degrees threshold
+        errors.push({
+          joint,
+          difference: Math.abs(angle1 - angle2)
+        });
+      }
+    });
+    
+    return errors;
+  };
+
+  // Enhanced 3D visualization with Three.js
+  const render3DView = (pose: any) => {
+    if (!canvas3DRef.current || !show3DView) return;
+    
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, canvas3DRef.current.width / canvas3DRef.current.height, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas3DRef.current, alpha: true });
+    
+    // Add ambient light
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    
+    // Add directional light
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(0, 10, 10);
+    scene.add(directionalLight);
+    
+    // Create joints and bones
+    const joints: THREE.Mesh[] = [];
+    const bones: THREE.Line[] = [];
+    
+    // Add joints
+    pose.keypoints.forEach((keypoint: any) => {
+      if (keypoint.score > 0.5) {
+        const geometry = new THREE.SphereGeometry(0.1, 32, 32);
+        const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+        const joint = new THREE.Mesh(geometry, material);
+        joint.position.set(
+          (keypoint.x / canvas3DRef.current!.width - 0.5) * 4,
+          -(keypoint.y / canvas3DRef.current!.height - 0.5) * 4,
+          0
+        );
+        scene.add(joint);
+        joints.push(joint);
+      }
+    });
+    
+    // Add bones between connected joints
+    const connections = [
+      ['leftShoulder', 'leftElbow'],
+      ['leftElbow', 'leftWrist'],
+      ['rightShoulder', 'rightElbow'],
+      ['rightElbow', 'rightWrist'],
+      ['leftShoulder', 'rightShoulder'],
+      ['leftHip', 'rightHip'],
+      ['leftShoulder', 'leftHip'],
+      ['rightShoulder', 'rightHip'],
+      ['leftHip', 'leftKnee'],
+      ['leftKnee', 'leftAnkle'],
+      ['rightHip', 'rightKnee'],
+      ['rightKnee', 'rightAnkle']
+    ];
+    
+    connections.forEach(([start, end]) => {
+      const startPoint = pose.keypoints.find((kp: any) => kp.name === start);
+      const endPoint = pose.keypoints.find((kp: any) => kp.name === end);
+      
+      if (startPoint && endPoint && startPoint.score > 0.5 && endPoint.score > 0.5) {
+        const points = [];
+        points.push(new THREE.Vector3(
+          (startPoint.x / canvas3DRef.current!.width - 0.5) * 4,
+          -(startPoint.y / canvas3DRef.current!.height - 0.5) * 4,
+          0
+        ));
+        points.push(new THREE.Vector3(
+          (endPoint.x / canvas3DRef.current!.width - 0.5) * 4,
+          -(endPoint.y / canvas3DRef.current!.height - 0.5) * 4,
+          0
+        ));
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+        const bone = new THREE.Line(geometry, material);
+        scene.add(bone);
+        bones.push(bone);
+      }
+    });
+    
+    // Position camera
+    camera.position.z = 5;
+    
+    // Animation loop
+    const animate = () => {
+      animationFrameRef.current = requestAnimationFrame(animate);
+      
+      // Rotate scene slightly for 3D effect
+      scene.rotation.y += 0.005;
+      
+      // Add smooth transitions for joint positions
+      joints.forEach((joint, i) => {
+        const keypoint = pose.keypoints[i];
+        if (keypoint && keypoint.score > 0.5) {
+          joint.position.lerp(
+            new THREE.Vector3(
+              (keypoint.x / canvas3DRef.current!.width - 0.5) * 4,
+              -(keypoint.y / canvas3DRef.current!.height - 0.5) * 4,
+              0
+            ),
+            0.1
+          );
+        }
+      });
+      
+      renderer.render(scene, camera);
+    };
+    
+    animate();
+    
+    // Cleanup
+    return (
+    <div className="relative w-full h-full">
+      {/* Video Player Container with enhanced visuals */}
+      <div 
+        className={`relative w-full aspect-video bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden shadow-lg transition-all duration-500 ${isTransitioning ? 'scale-95 opacity-90 rotate-1' : 'scale-100 opacity-100 rotate-0'} hover:shadow-2xl`}
+        style={{
+          transform: `perspective(1000px) ${isTransitioning ? 'rotateX(2deg)' : 'rotateX(0deg)'}`
+        }}
+        onMouseEnter={() => {
+          setShowControls(true);
+          setIsTransitioning(true);
+          setTimeout(() => setIsTransitioning(false), 300);
+        }}
+        onMouseLeave={() => setShowControls(false)}
+      >
+        {/* Main Video */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleVideoTimeUpdate}
+          onLoadedMetadata={handleVideoLoadedMetadata}
+        />
+
+        {/* Reference Video (if in comparison mode) */}
+        {(showSideBySide || showOverlay) && (
+          <video
+            ref={referenceVideoRef}
+            className={`absolute top-0 ${showSideBySide ? 'right-0 w-1/2' : 'left-0 w-full opacity-50'} h-full object-contain`}
+          />
+        )}
+
+        {/* Canvas Overlay */}
+        <canvas
+          ref={canvasRef}
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        />
+
+        {/* 3D View Canvas */}
+        {show3DView && (
+          <canvas
+            ref={canvas3DRef}
+            className="absolute top-0 right-0 w-1/3 h-1/3 bg-black/30 rounded-bl-lg"
+          />
+        )}
+
+        {/* Video Controls */}
+        <div 
+          className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {/* Progress Bar */}
+          <div className="w-full h-1 bg-white/30 rounded-full mb-4 cursor-pointer">
+            <div 
+              className="h-full bg-primary rounded-full relative"
+              style={{ width: `${(videoPlaybackState.currentTime / videoPlaybackState.duration) * 100}%` }}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full transform scale-0 hover:scale-100 transition-transform" />
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={togglePlayPause}
+              >
+                {videoPlaybackState.isPlaying ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6" />
+                )}
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm">
+                  {formatTime(videoPlaybackState.currentTime)} / {formatTime(videoPlaybackState.duration)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 group relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-primary"
+                >
+                  <Volume2 className="h-5 w-5" />
+                </Button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block">
+                  <div className="bg-black/90 rounded-lg p-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={videoPlaybackState.volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Playback Rate */}
+              <select
+                value={videoPlaybackState.playbackRate}
+                onChange={(e) => handlePlaybackRateChange(parseFloat(e.target.value))}
+                className="bg-transparent text-white text-sm border-none outline-none"
+              >
+                <option value="0.5">0.5x</option>
+                <option value="1">1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+
+              {/* Comparison Controls */}
+              {referenceVideoUrl && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showSideBySide ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowSideBySide(!showSideBySide);
+                      setShowOverlay(false);
+                    }}
+                  >
+                    <LayoutSplit className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showOverlay ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowOverlay(!showOverlay);
+                      setShowSideBySide(false);
+                    }}
+                  >
+                    <Layers className="h-5 w-5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* 3D View Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`text-white hover:text-primary ${show3DView ? 'text-primary' : ''}`}
+                onClick={() => setShow3DView(!show3DView)}
+              >
+                <Box className="h-5 w-5" />
+              </Button>
+
+              {/* Fullscreen Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={toggleFullscreen}
+              >
+                {videoPlaybackState.isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Analysis Controls */}
+      <div className="mt-6 space-y-4 transform transition-all duration-300 hover:scale-[1.02]">
+        <div className="flex items-center justify-between bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <Button
+              variant={isAnalyzing ? 'destructive' : 'default'}
+              onClick={isAnalyzing ? stopAnalysis : startAnalysis}
+              className={`relative overflow-hidden transform transition-all duration-300 ${isAnalyzing ? 'animate-pulse shadow-red-500/50' : 'hover:scale-105 shadow-primary/50'} shadow-lg`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Stop className="h-5 w-5 mr-2" />
+                  Stop Analysis
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  Start Analysis
+                </>
+              )}
+              {isAnalyzing && (
+                <div
+                  className="absolute inset-0 bg-white/20"
+                  style={{
+                    transform: `translateX(${progress}%)",
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                />
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('mediapipe')}
+                className={detectionMethod === 'mediapipe' ? 'border-primary text-primary' : ''}
+              >
+                <Activity className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('openpose')}
+                className={detectionMethod === 'openpose' ? 'border-primary text-primary' : ''}
+              >
+                <Zap className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setAudioFeedback(!audioFeedback)}
+              className={audioFeedback ? 'border-primary text-primary' : ''}
+            >
+              {audioFeedback ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
+              className={showAdvancedMetrics ? 'border-primary text-primary' : ''}
+            >
+              <BarChart2 className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Feedback Display */}
+        <div className="space-y-2 perspective-1000">
+          {feedback.map((message, index) => (
+            <div
+              key={index}
+              className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm flex items-start gap-3 transform transition-all duration-500 hover:scale-[1.02] hover:-rotate-1 shadow-lg"
+              style={{
+                animation: `slideIn 0.5s ease-out ${index * 0.1}s both`,
+                opacity: 0,
+                transform: 'translateY(20px)'
+              }}
+            >
+              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{message}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Metrics Display */}
+        {showAdvancedMetrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <MetricCard
+              title="Symmetry"
+              value={poseMetrics.symmetryScore}
+              icon={<Balance className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Balance"
+              value={poseMetrics.balanceScore}
+              icon={<Activity className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Stability"
+              value={poseMetrics.stabilityScore}
+              icon={<Anchor className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Alignment"
+              value={poseMetrics.alignmentScore}
+              icon={<AlignCenter className="h-5 w-5" />}
+            />
+          </div>
+        )}
+      </div>
+    </div>) => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      scene.clear();
+      renderer.dispose();
+    };
+  };
+
+  // Video player controls
+  const handleVideoTimeUpdate = () => {
+    if (videoRef.current) {
+      setVideoPlaybackState(prev => ({
+        ...prev,
+        currentTime: videoRef.current!.currentTime
+      }));
+    }
+  };
+
+  const handleVideoLoadedMetadata = () => {
+    if (videoRef.current) {
+      setVideoPlaybackState(prev => ({
+        ...prev,
+        duration: videoRef.current!.duration
+      }));
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (videoPlaybackState.isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setVideoPlaybackState(prev => ({
+        ...prev,
+        isPlaying: !prev.isPlaying
+      }));
+    }
+  };
+
+  const handleVolumeChange = (value: number) => {
+    if (videoRef.current) {
+      videoRef.current.volume = value;
+      setVideoPlaybackState(prev => ({
+        ...prev,
+        volume: value
+      }));
+    }
+  };
+
+  const handlePlaybackRateChange = (rate: number) => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = rate;
+      setVideoPlaybackState(prev => ({
+        ...prev,
+        playbackRate: rate
+      }));
+    }
+  };
+
+  const toggleFullscreen = () => {
+    const container = videoRef.current?.parentElement;
+    if (!container) return;
+
+    if (!document.fullscreenElement) {
+      container.requestFullscreen();
+      setVideoPlaybackState(prev => ({
+        ...prev,
+        isFullscreen: true
+      }));
+    } else {
+      document.exitFullscreen();
+      setVideoPlaybackState(prev => ({
+        ...prev,
+        isFullscreen: false
+      }));
     }
   };
 
@@ -921,39 +1969,622 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
 
   if (!isMediaPipeSupported || !isOpenPoseSupported) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
-            Browser Not Supported
-          </CardTitle>
-          <CardDescription>
-            Your browser doesn't support the required features for pose analysis.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Please try using a modern browser like Chrome, Edge, or Firefox.
-          </p>
-          <Button variant="outline" onClick={() => window.location.reload()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="relative w-full h-full">
+      {/* Video Player Container with enhanced visuals */}
+      <div 
+        className={`relative w-full aspect-video bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden shadow-lg transition-all duration-500 ${isTransitioning ? 'scale-95 opacity-90 rotate-1' : 'scale-100 opacity-100 rotate-0'} hover:shadow-2xl`}
+        style={{
+          transform: `perspective(1000px) ${isTransitioning ? 'rotateX(2deg)' : 'rotateX(0deg)'}`
+        }}
+        onMouseEnter={() => {
+          setShowControls(true);
+          setIsTransitioning(true);
+          setTimeout(() => setIsTransitioning(false), 300);
+        }}
+        onMouseLeave={() => setShowControls(false)}
+      >
+        {/* Main Video */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleVideoTimeUpdate}
+          onLoadedMetadata={handleVideoLoadedMetadata}
+        />
+
+        {/* Reference Video (if in comparison mode) */}
+        {(showSideBySide || showOverlay) && (
+          <video
+            ref={referenceVideoRef}
+            className={`absolute top-0 ${showSideBySide ? 'right-0 w-1/2' : 'left-0 w-full opacity-50'} h-full object-contain`}
+          />
+        )}
+
+        {/* Canvas Overlay */}
+        <canvas
+          ref={canvasRef}
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        />
+
+        {/* 3D View Canvas */}
+        {show3DView && (
+          <canvas
+            ref={canvas3DRef}
+            className="absolute top-0 right-0 w-1/3 h-1/3 bg-black/30 rounded-bl-lg"
+          />
+        )}
+
+        {/* Video Controls */}
+        <div 
+          className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {/* Progress Bar */}
+          <div className="w-full h-1 bg-white/30 rounded-full mb-4 cursor-pointer">
+            <div 
+              className="h-full bg-primary rounded-full relative"
+              style={{ width: `${(videoPlaybackState.currentTime / videoPlaybackState.duration) * 100}%` }}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full transform scale-0 hover:scale-100 transition-transform" />
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={togglePlayPause}
+              >
+                {videoPlaybackState.isPlaying ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6" />
+                )}
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm">
+                  {formatTime(videoPlaybackState.currentTime)} / {formatTime(videoPlaybackState.duration)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 group relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-primary"
+                >
+                  <Volume2 className="h-5 w-5" />
+                </Button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block">
+                  <div className="bg-black/90 rounded-lg p-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={videoPlaybackState.volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Playback Rate */}
+              <select
+                value={videoPlaybackState.playbackRate}
+                onChange={(e) => handlePlaybackRateChange(parseFloat(e.target.value))}
+                className="bg-transparent text-white text-sm border-none outline-none"
+              >
+                <option value="0.5">0.5x</option>
+                <option value="1">1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+
+              {/* Comparison Controls */}
+              {referenceVideoUrl && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showSideBySide ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowSideBySide(!showSideBySide);
+                      setShowOverlay(false);
+                    }}
+                  >
+                    <LayoutSplit className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showOverlay ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowOverlay(!showOverlay);
+                      setShowSideBySide(false);
+                    }}
+                  >
+                    <Layers className="h-5 w-5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* 3D View Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`text-white hover:text-primary ${show3DView ? 'text-primary' : ''}`}
+                onClick={() => setShow3DView(!show3DView)}
+              >
+                <Box className="h-5 w-5" />
+              </Button>
+
+              {/* Fullscreen Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={toggleFullscreen}
+              >
+                {videoPlaybackState.isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Analysis Controls */}
+      <div className="mt-6 space-y-4 transform transition-all duration-300 hover:scale-[1.02]">
+        <div className="flex items-center justify-between bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <Button
+              variant={isAnalyzing ? 'destructive' : 'default'}
+              onClick={isAnalyzing ? stopAnalysis : startAnalysis}
+              className={`relative overflow-hidden transform transition-all duration-300 ${isAnalyzing ? 'animate-pulse shadow-red-500/50' : 'hover:scale-105 shadow-primary/50'} shadow-lg`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Stop className="h-5 w-5 mr-2" />
+                  Stop Analysis
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  Start Analysis
+                </>
+              )}
+              {isAnalyzing && (
+                <div
+                  className="absolute inset-0 bg-white/20"
+                  style={{
+                    transform: `translateX(${progress}%)",
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                />
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('mediapipe')}
+                className={detectionMethod === 'mediapipe' ? 'border-primary text-primary' : ''}
+              >
+                <Activity className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('openpose')}
+                className={detectionMethod === 'openpose' ? 'border-primary text-primary' : ''}
+              >
+                <Zap className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setAudioFeedback(!audioFeedback)}
+              className={audioFeedback ? 'border-primary text-primary' : ''}
+            >
+              {audioFeedback ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
+              className={showAdvancedMetrics ? 'border-primary text-primary' : ''}
+            >
+              <BarChart2 className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Feedback Display */}
+        <div className="space-y-2 perspective-1000">
+          {feedback.map((message, index) => (
+            <div
+              key={index}
+              className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm flex items-start gap-3 transform transition-all duration-500 hover:scale-[1.02] hover:-rotate-1 shadow-lg"
+              style={{
+                animation: `slideIn 0.5s ease-out ${index * 0.1}s both`,
+                opacity: 0,
+                transform: 'translateY(20px)'
+              }}
+            >
+              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{message}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Metrics Display */}
+        {showAdvancedMetrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <MetricCard
+              title="Symmetry"
+              value={poseMetrics.symmetryScore}
+              icon={<Balance className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Balance"
+              value={poseMetrics.balanceScore}
+              icon={<Activity className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Stability"
+              value={poseMetrics.stabilityScore}
+              icon={<Anchor className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Alignment"
+              value={poseMetrics.alignmentScore}
+              icon={<AlignCenter className="h-5 w-5" />}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+      <div className="w-full max-w-4xl mx-auto p-4 space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-yellow-500" />
+              Browser Not Supported
+            </CardTitle>
+            <CardDescription>
+              Your browser doesn't support the required features for pose analysis.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Please try using a modern browser like Chrome, Edge, or Firefox.
+            </p>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader>
-        <CardTitle>Pose Analysis</CardTitle>
-        <CardDescription>
-          {mode === 'live'
-            ? 'Analyze your exercise form in real-time using your camera'
-            : 'Analyze your uploaded exercise video'}
-        </CardDescription>
-      </CardHeader>
+    <div className="relative w-full h-full">
+      {/* Video Player Container with enhanced visuals */}
+      <div 
+        className={`relative w-full aspect-video bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden shadow-lg transition-all duration-500 ${isTransitioning ? 'scale-95 opacity-90 rotate-1' : 'scale-100 opacity-100 rotate-0'} hover:shadow-2xl`}
+        style={{
+          transform: `perspective(1000px) ${isTransitioning ? 'rotateX(2deg)' : 'rotateX(0deg)'}`
+        }}
+        onMouseEnter={() => {
+          setShowControls(true);
+          setIsTransitioning(true);
+          setTimeout(() => setIsTransitioning(false), 300);
+        }}
+        onMouseLeave={() => setShowControls(false)}
+      >
+        {/* Main Video */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleVideoTimeUpdate}
+          onLoadedMetadata={handleVideoLoadedMetadata}
+        />
+
+        {/* Reference Video (if in comparison mode) */}
+        {(showSideBySide || showOverlay) && (
+          <video
+            ref={referenceVideoRef}
+            className={`absolute top-0 ${showSideBySide ? 'right-0 w-1/2' : 'left-0 w-full opacity-50'} h-full object-contain`}
+          />
+        )}
+
+        {/* Canvas Overlay */}
+        <canvas
+          ref={canvasRef}
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        />
+
+        {/* 3D View Canvas */}
+        {show3DView && (
+          <canvas
+            ref={canvas3DRef}
+            className="absolute top-0 right-0 w-1/3 h-1/3 bg-black/30 rounded-bl-lg"
+          />
+        )}
+
+        {/* Video Controls */}
+        <div 
+          className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {/* Progress Bar */}
+          <div className="w-full h-1 bg-white/30 rounded-full mb-4 cursor-pointer">
+            <div 
+              className="h-full bg-primary rounded-full relative"
+              style={{ width: `${(videoPlaybackState.currentTime / videoPlaybackState.duration) * 100}%` }}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full transform scale-0 hover:scale-100 transition-transform" />
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={togglePlayPause}
+              >
+                {videoPlaybackState.isPlaying ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6" />
+                )}
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm">
+                  {formatTime(videoPlaybackState.currentTime)} / {formatTime(videoPlaybackState.duration)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 group relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-primary"
+                >
+                  <Volume2 className="h-5 w-5" />
+                </Button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block">
+                  <div className="bg-black/90 rounded-lg p-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={videoPlaybackState.volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Playback Rate */}
+              <select
+                value={videoPlaybackState.playbackRate}
+                onChange={(e) => handlePlaybackRateChange(parseFloat(e.target.value))}
+                className="bg-transparent text-white text-sm border-none outline-none"
+              >
+                <option value="0.5">0.5x</option>
+                <option value="1">1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+
+              {/* Comparison Controls */}
+              {referenceVideoUrl && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showSideBySide ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowSideBySide(!showSideBySide);
+                      setShowOverlay(false);
+                    }}
+                  >
+                    <LayoutSplit className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showOverlay ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowOverlay(!showOverlay);
+                      setShowSideBySide(false);
+                    }}
+                  >
+                    <Layers className="h-5 w-5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* 3D View Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`text-white hover:text-primary ${show3DView ? 'text-primary' : ''}`}
+                onClick={() => setShow3DView(!show3DView)}
+              >
+                <Box className="h-5 w-5" />
+              </Button>
+
+              {/* Fullscreen Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={toggleFullscreen}
+              >
+                {videoPlaybackState.isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Analysis Controls */}
+      <div className="mt-6 space-y-4 transform transition-all duration-300 hover:scale-[1.02]">
+        <div className="flex items-center justify-between bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <Button
+              variant={isAnalyzing ? 'destructive' : 'default'}
+              onClick={isAnalyzing ? stopAnalysis : startAnalysis}
+              className={`relative overflow-hidden transform transition-all duration-300 ${isAnalyzing ? 'animate-pulse shadow-red-500/50' : 'hover:scale-105 shadow-primary/50'} shadow-lg`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Stop className="h-5 w-5 mr-2" />
+                  Stop Analysis
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  Start Analysis
+                </>
+              )}
+              {isAnalyzing && (
+                <div
+                  className="absolute inset-0 bg-white/20"
+                  style={{
+                    transform: `translateX(${progress}%)",
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                />
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('mediapipe')}
+                className={detectionMethod === 'mediapipe' ? 'border-primary text-primary' : ''}
+              >
+                <Activity className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('openpose')}
+                className={detectionMethod === 'openpose' ? 'border-primary text-primary' : ''}
+              >
+                <Zap className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setAudioFeedback(!audioFeedback)}
+              className={audioFeedback ? 'border-primary text-primary' : ''}
+            >
+              {audioFeedback ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
+              className={showAdvancedMetrics ? 'border-primary text-primary' : ''}
+            >
+              <BarChart2 className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Feedback Display */}
+        <div className="space-y-2 perspective-1000">
+          {feedback.map((message, index) => (
+            <div
+              key={index}
+              className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm flex items-start gap-3 transform transition-all duration-500 hover:scale-[1.02] hover:-rotate-1 shadow-lg"
+              style={{
+                animation: `slideIn 0.5s ease-out ${index * 0.1}s both`,
+                opacity: 0,
+                transform: 'translateY(20px)'
+              }}
+            >
+              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{message}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Metrics Display */}
+        {showAdvancedMetrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <MetricCard
+              title="Symmetry"
+              value={poseMetrics.symmetryScore}
+              icon={<Balance className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Balance"
+              value={poseMetrics.balanceScore}
+              icon={<Activity className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Stability"
+              value={poseMetrics.stabilityScore}
+              icon={<Anchor className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Alignment"
+              value={poseMetrics.alignmentScore}
+              icon={<AlignCenter className="h-5 w-5" />}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+      <div className="w-full max-w-4xl mx-auto p-4 space-y-4">
+        <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Analisis Pose Real-time
+            </CardTitle>
+            <CardDescription>
+              {mode === 'live'
+                ? 'Analisis pose secara real-time menggunakan kamera'
+                : 'Analisis pose dari video yang diunggah'}
+            </CardDescription>
       <CardContent className="space-y-4">
         <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
           {/* Video element (camera feed or uploaded video) */}
@@ -1154,6 +2785,295 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
                     if (partScore < 50) colorClass = 'bg-red-500';
 
                     return (
+    <div className="relative w-full h-full">
+      {/* Video Player Container with enhanced visuals */}
+      <div 
+        className={`relative w-full aspect-video bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden shadow-lg transition-all duration-500 ${isTransitioning ? 'scale-95 opacity-90 rotate-1' : 'scale-100 opacity-100 rotate-0'} hover:shadow-2xl`}
+        style={{
+          transform: `perspective(1000px) ${isTransitioning ? 'rotateX(2deg)' : 'rotateX(0deg)'}`
+        }}
+        onMouseEnter={() => {
+          setShowControls(true);
+          setIsTransitioning(true);
+          setTimeout(() => setIsTransitioning(false), 300);
+        }}
+        onMouseLeave={() => setShowControls(false)}
+      >
+        {/* Main Video */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleVideoTimeUpdate}
+          onLoadedMetadata={handleVideoLoadedMetadata}
+        />
+
+        {/* Reference Video (if in comparison mode) */}
+        {(showSideBySide || showOverlay) && (
+          <video
+            ref={referenceVideoRef}
+            className={`absolute top-0 ${showSideBySide ? 'right-0 w-1/2' : 'left-0 w-full opacity-50'} h-full object-contain`}
+          />
+        )}
+
+        {/* Canvas Overlay */}
+        <canvas
+          ref={canvasRef}
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        />
+
+        {/* 3D View Canvas */}
+        {show3DView && (
+          <canvas
+            ref={canvas3DRef}
+            className="absolute top-0 right-0 w-1/3 h-1/3 bg-black/30 rounded-bl-lg"
+          />
+        )}
+
+        {/* Video Controls */}
+        <div 
+          className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {/* Progress Bar */}
+          <div className="w-full h-1 bg-white/30 rounded-full mb-4 cursor-pointer">
+            <div 
+              className="h-full bg-primary rounded-full relative"
+              style={{ width: `${(videoPlaybackState.currentTime / videoPlaybackState.duration) * 100}%` }}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full transform scale-0 hover:scale-100 transition-transform" />
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={togglePlayPause}
+              >
+                {videoPlaybackState.isPlaying ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6" />
+                )}
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm">
+                  {formatTime(videoPlaybackState.currentTime)} / {formatTime(videoPlaybackState.duration)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 group relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-primary"
+                >
+                  <Volume2 className="h-5 w-5" />
+                </Button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block">
+                  <div className="bg-black/90 rounded-lg p-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={videoPlaybackState.volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Playback Rate */}
+              <select
+                value={videoPlaybackState.playbackRate}
+                onChange={(e) => handlePlaybackRateChange(parseFloat(e.target.value))}
+                className="bg-transparent text-white text-sm border-none outline-none"
+              >
+                <option value="0.5">0.5x</option>
+                <option value="1">1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+
+              {/* Comparison Controls */}
+              {referenceVideoUrl && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showSideBySide ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowSideBySide(!showSideBySide);
+                      setShowOverlay(false);
+                    }}
+                  >
+                    <LayoutSplit className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showOverlay ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowOverlay(!showOverlay);
+                      setShowSideBySide(false);
+                    }}
+                  >
+                    <Layers className="h-5 w-5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* 3D View Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`text-white hover:text-primary ${show3DView ? 'text-primary' : ''}`}
+                onClick={() => setShow3DView(!show3DView)}
+              >
+                <Box className="h-5 w-5" />
+              </Button>
+
+              {/* Fullscreen Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={toggleFullscreen}
+              >
+                {videoPlaybackState.isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Analysis Controls */}
+      <div className="mt-6 space-y-4 transform transition-all duration-300 hover:scale-[1.02]">
+        <div className="flex items-center justify-between bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <Button
+              variant={isAnalyzing ? 'destructive' : 'default'}
+              onClick={isAnalyzing ? stopAnalysis : startAnalysis}
+              className={`relative overflow-hidden transform transition-all duration-300 ${isAnalyzing ? 'animate-pulse shadow-red-500/50' : 'hover:scale-105 shadow-primary/50'} shadow-lg`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Stop className="h-5 w-5 mr-2" />
+                  Stop Analysis
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  Start Analysis
+                </>
+              )}
+              {isAnalyzing && (
+                <div
+                  className="absolute inset-0 bg-white/20"
+                  style={{
+                    transform: `translateX(${progress}%)",
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                />
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('mediapipe')}
+                className={detectionMethod === 'mediapipe' ? 'border-primary text-primary' : ''}
+              >
+                <Activity className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('openpose')}
+                className={detectionMethod === 'openpose' ? 'border-primary text-primary' : ''}
+              >
+                <Zap className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setAudioFeedback(!audioFeedback)}
+              className={audioFeedback ? 'border-primary text-primary' : ''}
+            >
+              {audioFeedback ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
+              className={showAdvancedMetrics ? 'border-primary text-primary' : ''}
+            >
+              <BarChart2 className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Feedback Display */}
+        <div className="space-y-2 perspective-1000">
+          {feedback.map((message, index) => (
+            <div
+              key={index}
+              className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm flex items-start gap-3 transform transition-all duration-500 hover:scale-[1.02] hover:-rotate-1 shadow-lg"
+              style={{
+                animation: `slideIn 0.5s ease-out ${index * 0.1}s both`,
+                opacity: 0,
+                transform: 'translateY(20px)'
+              }}
+            >
+              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{message}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Metrics Display */}
+        {showAdvancedMetrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <MetricCard
+              title="Symmetry"
+              value={poseMetrics.symmetryScore}
+              icon={<Balance className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Balance"
+              value={poseMetrics.balanceScore}
+              icon={<Activity className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Stability"
+              value={poseMetrics.stabilityScore}
+              icon={<Anchor className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Alignment"
+              value={poseMetrics.alignmentScore}
+              icon={<AlignCenter className="h-5 w-5" />}
+            />
+          </div>
+        )}
+      </div>
+    </div>
                       <div key={index} className="bg-white p-2 rounded-lg shadow-sm border border-blue-50 text-center">
                         <div className="flex justify-center mb-1">
                           <div className={`w-3 h-3 rounded-full ${colorClass}`}></div>
@@ -1195,6 +3115,295 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live' }: Po
                   }
 
                   return (
+    <div className="relative w-full h-full">
+      {/* Video Player Container with enhanced visuals */}
+      <div 
+        className={`relative w-full aspect-video bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden shadow-lg transition-all duration-500 ${isTransitioning ? 'scale-95 opacity-90 rotate-1' : 'scale-100 opacity-100 rotate-0'} hover:shadow-2xl`}
+        style={{
+          transform: `perspective(1000px) ${isTransitioning ? 'rotateX(2deg)' : 'rotateX(0deg)'}`
+        }}
+        onMouseEnter={() => {
+          setShowControls(true);
+          setIsTransitioning(true);
+          setTimeout(() => setIsTransitioning(false), 300);
+        }}
+        onMouseLeave={() => setShowControls(false)}
+      >
+        {/* Main Video */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleVideoTimeUpdate}
+          onLoadedMetadata={handleVideoLoadedMetadata}
+        />
+
+        {/* Reference Video (if in comparison mode) */}
+        {(showSideBySide || showOverlay) && (
+          <video
+            ref={referenceVideoRef}
+            className={`absolute top-0 ${showSideBySide ? 'right-0 w-1/2' : 'left-0 w-full opacity-50'} h-full object-contain`}
+          />
+        )}
+
+        {/* Canvas Overlay */}
+        <canvas
+          ref={canvasRef}
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        />
+
+        {/* 3D View Canvas */}
+        {show3DView && (
+          <canvas
+            ref={canvas3DRef}
+            className="absolute top-0 right-0 w-1/3 h-1/3 bg-black/30 rounded-bl-lg"
+          />
+        )}
+
+        {/* Video Controls */}
+        <div 
+          className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {/* Progress Bar */}
+          <div className="w-full h-1 bg-white/30 rounded-full mb-4 cursor-pointer">
+            <div 
+              className="h-full bg-primary rounded-full relative"
+              style={{ width: `${(videoPlaybackState.currentTime / videoPlaybackState.duration) * 100}%` }}
+            >
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full transform scale-0 hover:scale-100 transition-transform" />
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={togglePlayPause}
+              >
+                {videoPlaybackState.isPlaying ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6" />
+                )}
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm">
+                  {formatTime(videoPlaybackState.currentTime)} / {formatTime(videoPlaybackState.duration)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 group relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-primary"
+                >
+                  <Volume2 className="h-5 w-5" />
+                </Button>
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block">
+                  <div className="bg-black/90 rounded-lg p-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={videoPlaybackState.volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Playback Rate */}
+              <select
+                value={videoPlaybackState.playbackRate}
+                onChange={(e) => handlePlaybackRateChange(parseFloat(e.target.value))}
+                className="bg-transparent text-white text-sm border-none outline-none"
+              >
+                <option value="0.5">0.5x</option>
+                <option value="1">1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+
+              {/* Comparison Controls */}
+              {referenceVideoUrl && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showSideBySide ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowSideBySide(!showSideBySide);
+                      setShowOverlay(false);
+                    }}
+                  >
+                    <LayoutSplit className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`text-white hover:text-primary ${showOverlay ? 'text-primary' : ''}`}
+                    onClick={() => {
+                      setShowOverlay(!showOverlay);
+                      setShowSideBySide(false);
+                    }}
+                  >
+                    <Layers className="h-5 w-5" />
+                  </Button>
+                </div>
+              )}
+
+              {/* 3D View Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`text-white hover:text-primary ${show3DView ? 'text-primary' : ''}`}
+                onClick={() => setShow3DView(!show3DView)}
+              >
+                <Box className="h-5 w-5" />
+              </Button>
+
+              {/* Fullscreen Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:text-primary"
+                onClick={toggleFullscreen}
+              >
+                {videoPlaybackState.isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Analysis Controls */}
+      <div className="mt-6 space-y-4 transform transition-all duration-300 hover:scale-[1.02]">
+        <div className="flex items-center justify-between bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <Button
+              variant={isAnalyzing ? 'destructive' : 'default'}
+              onClick={isAnalyzing ? stopAnalysis : startAnalysis}
+              className={`relative overflow-hidden transform transition-all duration-300 ${isAnalyzing ? 'animate-pulse shadow-red-500/50' : 'hover:scale-105 shadow-primary/50'} shadow-lg`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Stop className="h-5 w-5 mr-2" />
+                  Stop Analysis
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  Start Analysis
+                </>
+              )}
+              {isAnalyzing && (
+                <div
+                  className="absolute inset-0 bg-white/20"
+                  style={{
+                    transform: `translateX(${progress}%)",
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                />
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('mediapipe')}
+                className={detectionMethod === 'mediapipe' ? 'border-primary text-primary' : ''}
+              >
+                <Activity className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDetectionMethod('openpose')}
+                className={detectionMethod === 'openpose' ? 'border-primary text-primary' : ''}
+              >
+                <Zap className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setAudioFeedback(!audioFeedback)}
+              className={audioFeedback ? 'border-primary text-primary' : ''}
+            >
+              {audioFeedback ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
+              className={showAdvancedMetrics ? 'border-primary text-primary' : ''}
+            >
+              <BarChart2 className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Feedback Display */}
+        <div className="space-y-2 perspective-1000">
+          {feedback.map((message, index) => (
+            <div
+              key={index}
+              className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-4 rounded-xl backdrop-blur-sm flex items-start gap-3 transform transition-all duration-500 hover:scale-[1.02] hover:-rotate-1 shadow-lg"
+              style={{
+                animation: `slideIn 0.5s ease-out ${index * 0.1}s both`,
+                opacity: 0,
+                transform: 'translateY(20px)'
+              }}
+            >
+              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm">{message}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Metrics Display */}
+        {showAdvancedMetrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <MetricCard
+              title="Symmetry"
+              value={poseMetrics.symmetryScore}
+              icon={<Balance className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Balance"
+              value={poseMetrics.balanceScore}
+              icon={<Activity className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Stability"
+              value={poseMetrics.stabilityScore}
+              icon={<Anchor className="h-5 w-5" />}
+            />
+            <MetricCard
+              title="Alignment"
+              value={poseMetrics.alignmentScore}
+              icon={<AlignCenter className="h-5 w-5" />}
+            />
+          </div>
+        )}
+      </div>
+    </div>
                     <div key={index} className={`${bgColor} p-3 rounded-lg flex items-start gap-3`}>
                       <div className="mt-0.5 flex-shrink-0">
                         {icon}
