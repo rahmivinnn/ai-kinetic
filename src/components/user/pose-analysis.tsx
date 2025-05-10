@@ -178,7 +178,17 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
     loadScripts();
 
     // Cleanup function
-    return (
+    return () => {
+      // Stop camera if active
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  return (
     <div className="relative w-full h-full">
       {/* Video Player Container with enhanced visuals */}
       <div 
