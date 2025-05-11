@@ -10,11 +10,11 @@ const nextConfig = {
     // your project has TypeScript errors.
     ignoreBuildErrors: true,
   },
-  // Comment out static export for development preview
-  // output: 'export',
+  // Output as static site for Netlify
+  output: 'export',
   // Don't use trailing slash for cleaner URLs
   trailingSlash: false,
-  // Image configuration
+  // Image configuration for static export
   images: {
     domains: ['images.unsplash.com', 'api.dicebear.com'],
     unoptimized: true,
@@ -33,26 +33,26 @@ const nextConfig = {
       },
     ];
   },
-  // Enable rewrites for development
-  async rewrites() {
-    return [
-      {
-        source: '/:path*',
-        destination: '/:path*',
-      },
-      {
-        source: '/openpose-analyzer',
-        destination: '/openpose-analyzer',
-      },
-    ];
-  },
+  // Disable rewrites for static export
+  // async rewrites() {
+  //   return [
+  //     {
+  //       source: '/:path*',
+  //       destination: '/:path*',
+  //     },
+  //     {
+  //       source: '/openpose-analyzer',
+  //       destination: '/openpose-analyzer',
+  //     },
+  //   ];
+  // },
   // Set the server to listen on all interfaces and use the correct port
   webpack: (config) => {
     return config;
   },
   // Allow cross-origin requests during development
   experimental: {
-    allowedDevOrigins: ['work-1-euwpsiogmcelmqkv.prod-runtime.all-hands.dev', 'work-2-euwpsiogmcelmqkv.prod-runtime.all-hands.dev'],
+    allowedDevOrigins: ['work-1-redqzxttfsywzgpi.prod-runtime.all-hands.dev', 'work-2-redqzxttfsywzgpi.prod-runtime.all-hands.dev'],
   },
 };
 
