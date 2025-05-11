@@ -19,6 +19,20 @@ const nextConfig = {
     domains: ['images.unsplash.com', 'api.dicebear.com'],
     unoptimized: true,
   },
+  // Enable CORS and allow iframe embedding
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
+          { key: 'X-Frame-Options', value: 'ALLOWALL' }
+        ],
+      },
+    ];
+  },
   // Disable rewrites for static export
   // async rewrites() {
   //   return [
@@ -32,6 +46,14 @@ const nextConfig = {
   //     },
   //   ];
   // },
+  // Set the server to listen on all interfaces and use the correct port
+  webpack: (config) => {
+    return config;
+  },
+  // Allow cross-origin requests during development
+  experimental: {
+    allowedDevOrigins: ['work-1-redqzxttfsywzgpi.prod-runtime.all-hands.dev', 'work-2-redqzxttfsywzgpi.prod-runtime.all-hands.dev'],
+  },
 };
 
 module.exports = nextConfig;

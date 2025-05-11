@@ -35,7 +35,10 @@ import {
   BarChart2,
   Activity,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -907,11 +910,14 @@ export default function OpenPoseAnalyzerPage() {
   const drawSimulatedSkeleton = (ctx: CanvasRenderingContext2D | null, width: number, height: number, isActive: boolean, customAngles?: any) => {
     if (!ctx) return;
 
-    // Get joint angles for skeleton positioning
-    const kneeAngle = customAngles?.rightKnee || customAngles?.right_knee || jointAngles.right_knee || 85;
-    const hipAngle = customAngles?.rightHip || customAngles?.right_hip || jointAngles.right_hip || 170;
-    const shoulderAngle = customAngles?.rightShoulder || customAngles?.right_shoulder || jointAngles.right_shoulder || 45;
-
+    // Get joint angles for skeleton positioning - properly handle left and right sides
+    const rightKneeAngle = customAngles?.rightKnee || customAngles?.right_knee || jointAngles.right_knee || 85;
+    const leftKneeAngle = customAngles?.leftKnee || customAngles?.left_knee || jointAngles.left_knee || 87;
+    const rightHipAngle = customAngles?.rightHip || customAngles?.right_hip || jointAngles.right_hip || 170;
+    const leftHipAngle = customAngles?.leftHip || customAngles?.left_hip || jointAngles.left_hip || 172;
+    const rightShoulderAngle = customAngles?.rightShoulder || customAngles?.right_shoulder || jointAngles.right_shoulder || 45;
+    const leftShoulderAngle = customAngles?.leftShoulder || customAngles?.left_shoulder || jointAngles.left_shoulder || 43;
+    
     // Calculate positions based on angles
     const centerX = width / 2;
     const centerY = height / 2;
@@ -937,33 +943,33 @@ export default function OpenPoseAnalyzerPage() {
     const elbowLength = 50;
     const forearmLength = 60;
 
-    // Left arm
-    const leftElbowX = leftShoulderX - elbowLength * Math.cos((shoulderAngle + 10) * Math.PI / 180);
-    const leftElbowY = shoulderY + elbowLength * Math.sin((shoulderAngle + 10) * Math.PI / 180);
-    const leftWristX = leftElbowX - forearmLength * Math.cos((shoulderAngle - 20) * Math.PI / 180);
-    const leftWristY = leftElbowY + forearmLength * Math.sin((shoulderAngle - 20) * Math.PI / 180);
+    // Left arm - use leftShoulderAngle for left side calculations
+    const leftElbowX = leftShoulderX - elbowLength * Math.cos((leftShoulderAngle + 10) * Math.PI / 180);
+    const leftElbowY = shoulderY + elbowLength * Math.sin((leftShoulderAngle + 10) * Math.PI / 180);
+    const leftWristX = leftElbowX - forearmLength * Math.cos((leftShoulderAngle - 20) * Math.PI / 180);
+    const leftWristY = leftElbowY + forearmLength * Math.sin((leftShoulderAngle - 20) * Math.PI / 180);
 
-    // Right arm
-    const rightElbowX = rightShoulderX + elbowLength * Math.cos((shoulderAngle + 10) * Math.PI / 180);
-    const rightElbowY = shoulderY + elbowLength * Math.sin((shoulderAngle + 10) * Math.PI / 180);
-    const rightWristX = rightElbowX + forearmLength * Math.cos((shoulderAngle - 20) * Math.PI / 180);
-    const rightWristY = rightElbowY + forearmLength * Math.sin((shoulderAngle - 20) * Math.PI / 180);
+    // Right arm - use rightShoulderAngle for right side calculations
+    const rightElbowX = rightShoulderX + elbowLength * Math.cos((rightShoulderAngle + 10) * Math.PI / 180);
+    const rightElbowY = shoulderY + elbowLength * Math.sin((rightShoulderAngle + 10) * Math.PI / 180);
+    const rightWristX = rightElbowX + forearmLength * Math.cos((rightShoulderAngle - 20) * Math.PI / 180);
+    const rightWristY = rightElbowY + forearmLength * Math.sin((rightShoulderAngle - 20) * Math.PI / 180);
 
     // Legs
     const kneeLength = 80;
     const calfLength = 90;
 
-    // Left leg
-    const leftKneeX = leftHipX - kneeLength * Math.sin((hipAngle - 180) * Math.PI / 180);
-    const leftKneeY = hipY + kneeLength * Math.cos((hipAngle - 180) * Math.PI / 180);
-    const leftAnkleX = leftKneeX - calfLength * Math.sin((kneeAngle - 180) * Math.PI / 180);
-    const leftAnkleY = leftKneeY + calfLength * Math.cos((kneeAngle - 180) * Math.PI / 180);
+    // Left leg - use leftHipAngle and leftKneeAngle for left side calculations
+    const leftKneeX = leftHipX - kneeLength * Math.sin((leftHipAngle - 180) * Math.PI / 180);
+    const leftKneeY = hipY + kneeLength * Math.cos((leftHipAngle - 180) * Math.PI / 180);
+    const leftAnkleX = leftKneeX - calfLength * Math.sin((leftKneeAngle - 180) * Math.PI / 180);
+    const leftAnkleY = leftKneeY + calfLength * Math.cos((leftKneeAngle - 180) * Math.PI / 180);
 
-    // Right leg
-    const rightKneeX = rightHipX + kneeLength * Math.sin((hipAngle - 180) * Math.PI / 180);
-    const rightKneeY = hipY + kneeLength * Math.cos((hipAngle - 180) * Math.PI / 180);
-    const rightAnkleX = rightKneeX + calfLength * Math.sin((kneeAngle - 180) * Math.PI / 180);
-    const rightAnkleY = rightKneeY + calfLength * Math.cos((kneeAngle - 180) * Math.PI / 180);
+    // Right leg - use rightHipAngle and rightKneeAngle for right side calculations
+    const rightKneeX = rightHipX + kneeLength * Math.sin((rightHipAngle - 180) * Math.PI / 180);
+    const rightKneeY = hipY + kneeLength * Math.cos((rightHipAngle - 180) * Math.PI / 180);
+    const rightAnkleX = rightKneeX + calfLength * Math.sin((rightKneeAngle - 180) * Math.PI / 180);
+    const rightAnkleY = rightKneeY + calfLength * Math.cos((rightKneeAngle - 180) * Math.PI / 180);
 
     // Add some movement if active
     const wobble = isActive ? Math.sin(Date.now() / 300) * 3 : 0;
@@ -1051,17 +1057,39 @@ export default function OpenPoseAnalyzerPage() {
 
     // Draw angle indicators if analyzing
     if (isActive) {
-      // Knee angle
       ctx.font = '16px Arial';
-      ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'center';
-      ctx.fillText(`${Math.round(kneeAngle)}°`, rightKneeX + 30, rightKneeY);
-
-      // Hip angle
-      ctx.fillText(`${Math.round(hipAngle)}°`, rightHipX + 30, hipY);
-
-      // Shoulder angle
-      ctx.fillText(`${Math.round(shoulderAngle)}°`, rightShoulderX + 30, shoulderY);
+      
+      // Function to draw angle with background for better visibility
+      const drawAngleText = (angle: number, x: number, y: number, color: string) => {
+        // Draw background for better readability
+        ctx!.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx!.fillRect(x - 25, y - 15, 50, 20);
+        
+        // Draw text with glow effect
+        ctx!.shadowColor = color;
+        ctx!.shadowBlur = 8;
+        ctx!.fillStyle = color;
+        ctx!.fillText(`${Math.round(angle)}°`, x, y);
+        ctx!.shadowBlur = 0;
+      };
+      
+      // Right side angles (blue theme)
+      drawAngleText(rightKneeAngle, rightKneeX + 30, rightKneeY, '#06b6d4');
+      drawAngleText(rightHipAngle, rightHipX + 30, hipY, '#06b6d4');
+      drawAngleText(rightShoulderAngle, rightShoulderX + 30, shoulderY, '#06b6d4');
+      
+      // Left side angles (purple theme)
+      drawAngleText(leftKneeAngle, leftKneeX - 30, leftKneeY, '#8b5cf6');
+      drawAngleText(leftHipAngle, leftHipX - 30, hipY, '#8b5cf6');
+      drawAngleText(leftShoulderAngle, leftShoulderX - 30, shoulderY, '#8b5cf6');
+      
+      // Add elbow angles
+      const rightElbowAngle = Math.round(180 - Math.abs(rightShoulderAngle - 20));
+      const leftElbowAngle = Math.round(180 - Math.abs(leftShoulderAngle - 20));
+      
+      drawAngleText(rightElbowAngle, rightElbowX + 30, rightElbowY, '#06b6d4');
+      drawAngleText(leftElbowAngle, leftElbowX - 30, leftElbowY, '#8b5cf6');
     }
   };
 
@@ -1192,9 +1220,19 @@ export default function OpenPoseAnalyzerPage() {
           <Card className="overflow-hidden border-2 border-primary/10 hover:shadow-xl transition-all duration-300">
             <div className="relative aspect-video bg-gradient-to-br from-gray-900 to-gray-800">
               {isLoading ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent"></div>
-                  <p className="text-white mt-4 animate-pulse">Loading OpenPose Analyzer...</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-900/80 to-indigo-900/80 backdrop-blur-sm">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="flex flex-col items-center"
+                  >
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent"></div>
+                    <p className="text-white mt-4 font-medium">
+                      <span className="inline-block animate-pulse">Loading OpenPose Analyzer</span>
+                      <span className="inline-block animate-bounce ml-1">...</span>
+                    </p>
+                  </motion.div>
                 </div>
               ) : activeTab === 'live' ? (
                 <>
@@ -1217,24 +1255,38 @@ export default function OpenPoseAnalyzerPage() {
                       >
                         <Button
                           size="lg"
-                          onClick={() => setIsStreaming(true)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={() => {
+                            setIsStreaming(true);
+                            toast.success('Starting camera...', {
+                              description: 'Your webcam will be activated for posture analysis',
+                              duration: 3000
+                            });
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white relative overflow-hidden group"
                         >
-                          <Camera className="h-5 w-5 mr-2" />
-                          Start Camera
+                          <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                          <span className="relative flex items-center">
+                            <Camera className="h-5 w-5 mr-2" />
+                            <span className="relative">Start Camera</span>
+                            <span className="absolute -right-6 top-0 h-full flex items-center opacity-0 group-hover:opacity-100 group-hover:right-0 transition-all duration-300">
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </span>
+                          </span>
                         </Button>
                       </motion.div>
                     </motion.div>
                   ) : (
                     <>
                       {/* Use video element instead of img for better streaming */}
-                      <video
-                        ref={streamRef as any}
-                        className="absolute inset-0 w-full h-full object-contain"
-                        autoPlay
-                        playsInline
-                        muted
-                      />
+                      <div className="video-container relative w-full h-full">
+                        <video
+                          ref={streamRef as any}
+                          className="absolute inset-0 w-full h-full object-contain"
+                          autoPlay
+                          playsInline
+                          muted
+                        />
+                      </div>
 
                       {/* Fallback image if video fails */}
                       <img
@@ -1363,11 +1415,15 @@ export default function OpenPoseAnalyzerPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="bg-black/70 text-white border-none hover:bg-black/90"
+                          className="bg-black/70 text-white border-none hover:bg-black/90 relative overflow-hidden group"
                           onClick={() => setSelectedExercise(null)}
                         >
-                          <X className="h-4 w-4 mr-1" />
-                          Back to Library
+                          <span className="absolute inset-0 w-full h-full bg-black/90 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                          <span className="relative flex items-center">
+                            <ChevronLeft className="h-3 w-3 mr-1 group-hover:-translate-x-1 transition-transform duration-300" />
+                            <X className="h-4 w-4 mr-1" />
+                            <span>Back to Library</span>
+                          </span>
                         </Button>
                       </div>
 
@@ -1386,7 +1442,7 @@ export default function OpenPoseAnalyzerPage() {
                         <div className="mt-3 pt-2 border-t border-white/20">
                           <Button
                             size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            className="bg-blue-600 hover:bg-blue-700 text-white relative overflow-hidden group"
                             onClick={() => {
                               setActiveTab('live');
                               setIsStreaming(true);
@@ -1398,8 +1454,14 @@ export default function OpenPoseAnalyzerPage() {
                               }, 1000);
                             }}
                           >
-                            <Camera className="h-3 w-3 mr-1" />
-                            Practice Now
+                            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                            <span className="relative flex items-center">
+                              <Camera className="h-3 w-3 mr-1 group-hover:animate-pulse" />
+                              <span>Practice Now</span>
+                              <span className="absolute -right-6 top-0 h-full flex items-center opacity-0 group-hover:opacity-100 group-hover:right-0 transition-all duration-300">
+                                <ChevronRight className="h-3 w-3 ml-1" />
+                              </span>
+                            </span>
                           </Button>
                         </div>
                       </div>
@@ -1611,11 +1673,20 @@ export default function OpenPoseAnalyzerPage() {
                       </Button>
                     ) : (
                       <Button
-                        onClick={startAnalysis}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        onClick={() => {
+                          startAnalysis();
+                          toast.success('Analysis started', {
+                            description: 'Analyzing your posture in real-time',
+                            duration: 3000
+                          });
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 relative overflow-hidden group"
                       >
-                        <Play className="h-4 w-4 mr-2" />
-                        Start Analysis
+                        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                        <span className="relative flex items-center">
+                          <Play className="h-4 w-4 mr-2 group-hover:animate-pulse" />
+                          <span>Start Analysis</span>
+                        </span>
                       </Button>
                     )}
 
@@ -1658,22 +1729,64 @@ export default function OpenPoseAnalyzerPage() {
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      onClick={toggleReferenceComparison}
-                      className={showReferenceComparison ? "border-purple-200 text-purple-600 bg-purple-50" : "border-blue-200 text-blue-600 hover:bg-blue-50"}
+                      onClick={() => {
+                        toggleReferenceComparison();
+                        toast.info(!showReferenceComparison ? 'Reference comparison enabled' : 'Reference hidden', {
+                          description: !showReferenceComparison ? 'Your posture will be compared with the reference model' : 'Showing only your posture',
+                          duration: 2000
+                        });
+                      }}
+                      className={`relative overflow-hidden group ${showReferenceComparison ? "border-purple-200 text-purple-600 bg-purple-50" : "border-blue-200 text-blue-600 hover:bg-blue-50"}`}
                     >
-                      <Activity className="h-4 w-4 mr-2" />
-                      {showReferenceComparison ? "Hide Reference" : "Compare with Reference"}
+                      <span className={`absolute inset-0 w-full h-full ${showReferenceComparison ? "bg-purple-100" : "bg-blue-50"} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></span>
+                      <span className="relative flex items-center">
+                        <Activity className={`h-4 w-4 mr-2 transition-all duration-300 ${showReferenceComparison ? "animate-pulse" : "group-hover:text-blue-700"}`} />
+                        <span>{showReferenceComparison ? "Hide Reference" : "Compare with Reference"}</span>
+                      </span>
                     </Button>
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() => setIsStreaming(false)}
-                      className="border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        setIsStreaming(false);
+                        toast.info('Camera stopped', {
+                          description: 'Your webcam has been deactivated',
+                          duration: 2000
+                        });
+                      }}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-300 relative group"
                     >
-                      <X className="h-4 w-4" />
+                      <span className="absolute inset-0 bg-red-50 scale-0 rounded-full group-hover:scale-100 transition-transform duration-300"></span>
+                      <X className="h-4 w-4 relative z-10" />
+                      <span className="sr-only">Stop Camera</span>
                     </Button>
-                    <Button variant="outline" size="icon">
-                      <Maximize2 className="h-4 w-4" />
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => {
+                        toast.info('Fullscreen mode', {
+                          description: 'Press ESC to exit fullscreen',
+                          duration: 2000
+                        });
+                        // Toggle fullscreen for the video container
+                        const videoContainer = document.querySelector('.video-container');
+                        if (videoContainer) {
+                          if (!document.fullscreenElement) {
+                            videoContainer.requestFullscreen().catch(err => {
+                              toast.error('Error entering fullscreen mode', {
+                                description: err.message
+                              });
+                            });
+                          } else {
+                            document.exitFullscreen();
+                          }
+                        }
+                      }}
+                      className="border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 relative group"
+                    >
+                      <span className="absolute inset-0 bg-gray-50 scale-0 rounded-full group-hover:scale-100 transition-transform duration-300"></span>
+                      <Maximize2 className="h-4 w-4 relative z-10 group-hover:scale-110 transition-transform duration-300" />
+                      <span className="sr-only">Fullscreen</span>
                     </Button>
                   </div>
                 </div>
@@ -1692,19 +1805,43 @@ export default function OpenPoseAnalyzerPage() {
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
-                      onClick={() => exportResults('json')}
-                      className="border-green-200 text-green-600 hover:bg-green-50"
+                      onClick={() => {
+                        exportResults('json');
+                        toast.success('JSON Export', {
+                          description: 'Your analysis data has been exported as JSON',
+                          duration: 2000
+                        });
+                      }}
+                      className="border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 transition-all duration-300 relative group overflow-hidden"
                     >
-                      <FileJson className="h-4 w-4 mr-2" />
-                      Export JSON
+                      <span className="absolute inset-0 w-full h-full bg-green-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                      <span className="relative flex items-center">
+                        <FileJson className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform duration-300" />
+                        <span>Export JSON</span>
+                        <span className="absolute -right-6 top-0 h-full flex items-center opacity-0 group-hover:opacity-100 group-hover:right-0 transition-all duration-300">
+                          <Download className="h-3 w-3 ml-1" />
+                        </span>
+                      </span>
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => exportResults('csv')}
-                      className="border-purple-200 text-purple-600 hover:bg-purple-50"
+                      onClick={() => {
+                        exportResults('csv');
+                        toast.success('CSV Export', {
+                          description: 'Your analysis data has been exported as CSV',
+                          duration: 2000
+                        });
+                      }}
+                      className="border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300 transition-all duration-300 relative group overflow-hidden"
                     >
-                      <FileSpreadsheet className="h-4 w-4 mr-2" />
-                      Export CSV
+                      <span className="absolute inset-0 w-full h-full bg-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                      <span className="relative flex items-center">
+                        <FileSpreadsheet className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform duration-300" />
+                        <span>Export CSV</span>
+                        <span className="absolute -right-6 top-0 h-full flex items-center opacity-0 group-hover:opacity-100 group-hover:right-0 transition-all duration-300">
+                          <Download className="h-3 w-3 ml-1" />
+                        </span>
+                      </span>
                     </Button>
                   </div>
                 </div>
@@ -1732,11 +1869,16 @@ export default function OpenPoseAnalyzerPage() {
             </CardHeader>
             <CardContent className="p-4">
               {isLoading ? (
-                <div className="space-y-3">
-                  <div className="h-10 bg-blue-50 rounded-lg animate-pulse w-full"></div>
-                  <div className="h-10 bg-blue-50 rounded-lg animate-pulse w-full"></div>
-                  <div className="h-10 bg-blue-50 rounded-lg animate-pulse w-full"></div>
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="space-y-3"
+                >
+                  <div className="h-10 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg animate-pulse w-full"></div>
+                  <div className="h-10 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg animate-pulse w-full" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="h-10 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg animate-pulse w-full" style={{ animationDelay: "0.4s" }}></div>
+                </motion.div>
               ) : isAnalyzing || analysisSummary ? (
                 <AnimatePresence>
                   {(feedback.length > 0 || (analysisSummary?.feedback && analysisSummary.feedback.length > 0)) ? (
@@ -1942,11 +2084,16 @@ export default function OpenPoseAnalyzerPage() {
             </CardHeader>
             <CardContent className="p-4">
               {isLoading ? (
-                <div className="space-y-4">
-                  <div className="h-10 bg-green-50 rounded-lg animate-pulse"></div>
-                  <div className="h-10 bg-green-50 rounded-lg animate-pulse"></div>
-                  <div className="h-10 bg-green-50 rounded-lg animate-pulse"></div>
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="space-y-4"
+                >
+                  <div className="h-10 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg animate-pulse"></div>
+                  <div className="h-10 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg animate-pulse" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="h-10 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg animate-pulse" style={{ animationDelay: "0.4s" }}></div>
+                </motion.div>
               ) : Object.keys(confidenceScores).length > 0 ? (
                 <div className="space-y-4">
                   {Object.entries(confidenceScores).map(([part, score]) => (
@@ -2007,12 +2154,17 @@ export default function OpenPoseAnalyzerPage() {
             </CardHeader>
             <CardContent className="p-4">
               {isLoading ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="h-16 bg-purple-50 rounded-lg animate-pulse"></div>
-                  <div className="h-16 bg-purple-50 rounded-lg animate-pulse"></div>
-                  <div className="h-16 bg-purple-50 rounded-lg animate-pulse"></div>
-                  <div className="h-16 bg-purple-50 rounded-lg animate-pulse"></div>
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  <div className="h-16 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg animate-pulse"></div>
+                  <div className="h-16 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg animate-pulse" style={{ animationDelay: "0.15s" }}></div>
+                  <div className="h-16 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg animate-pulse" style={{ animationDelay: "0.3s" }}></div>
+                  <div className="h-16 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg animate-pulse" style={{ animationDelay: "0.45s" }}></div>
+                </motion.div>
               ) : Object.keys(jointAngles).length > 0 || (analysisSummary?.joint_angles && Object.keys(analysisSummary.joint_angles).length > 0) ? (
                 <div className="grid grid-cols-2 gap-3">
                   {Object.entries(analysisSummary?.joint_angles || jointAngles).map(([joint, angle]) => (
@@ -2120,10 +2272,18 @@ export default function OpenPoseAnalyzerPage() {
             </CardHeader>
             <CardContent className="p-4">
               {isLoading ? (
-                <div className="space-y-4">
-                  <div className="h-10 bg-green-50 rounded-lg animate-pulse"></div>
-                  <div className="h-10 bg-green-50 rounded-lg animate-pulse"></div>
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="space-y-4"
+                >
+                  <div className="h-24 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg animate-pulse"></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="h-16 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg animate-pulse" style={{ animationDelay: "0.2s" }}></div>
+                    <div className="h-16 bg-gradient-to-r from-green-50 to-teal-50 rounded-lg animate-pulse" style={{ animationDelay: "0.4s" }}></div>
+                  </div>
+                </motion.div>
               ) : analysisSummary ? (
                 <div className="space-y-4">
                   <div className="bg-green-50 p-4 rounded-lg border border-green-100">
@@ -2225,9 +2385,16 @@ export default function OpenPoseAnalyzerPage() {
                         description: 'Complete the analysis to see your personalized recommendations'
                       });
                     }}
+                    className="relative overflow-hidden group"
                   >
-                    <Play className="h-4 w-4 mr-2" />
-                    Start Analysis
+                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-green-50 to-emerald-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                    <span className="relative flex items-center">
+                      <Play className="h-4 w-4 mr-2 group-hover:animate-pulse" />
+                      <span>Start Analysis</span>
+                      <span className="absolute -right-6 top-0 h-full flex items-center opacity-0 group-hover:opacity-100 group-hover:right-0 transition-all duration-300">
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </span>
+                    </span>
                   </Button>
                 </div>
               )}
@@ -2242,11 +2409,20 @@ export default function OpenPoseAnalyzerPage() {
               whileTap={{ scale: 0.97 }}
             >
               <Button
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                onClick={() => exportResults('json')}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 relative overflow-hidden group"
+                onClick={() => {
+                  exportResults('json');
+                  toast.success('Results exported', {
+                    description: 'Your analysis data has been exported successfully',
+                    duration: 3000
+                  });
+                }}
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export Results
+                <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-700 to-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                <span className="relative flex items-center justify-center w-full">
+                  <Download className="h-4 w-4 mr-2 group-hover:animate-bounce" />
+                  <span>Export Results</span>
+                </span>
               </Button>
             </motion.div>
             <motion.div
