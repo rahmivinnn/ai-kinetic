@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Box, LayoutSplit, Layers, Stop, BarChart2, Balance, Anchor, AlignCenter } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Box, Layers, Anchor, AlignCenter } from 'lucide-react';
 
 // Define the PoseAnalysis component props
 interface PoseAnalysisProps {
@@ -507,7 +507,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
                       setShowOverlay(false);
                     }}
                   >
-                    <LayoutSplit className="h-5 w-5" />
+                    <Layers className="h-5 w-5" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -559,7 +559,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
             >
               {isAnalyzing ? (
                 <>
-                  <Stop className="h-5 w-5 mr-2" />
+                  <Pause className="h-5 w-5 mr-2" />
                   Stop Analysis
                 </>
               ) : (
@@ -614,7 +614,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
               onClick={() => setShowAdvancedMetrics(!showAdvancedMetrics)}
               className={showAdvancedMetrics ? 'border-primary text-primary' : ''}
             >
-              <BarChart2 className="h-5 w-5" />
+              <Activity className="h-5 w-5" />
             </Button>
           </div>
         </div>
@@ -641,7 +641,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
             <MetricCard
               title="Symmetry"
               value={poseMetrics.symmetryScore}
-              icon={<Balance className="h-5 w-5" />}
+              icon={<Anchor className="h-5 w-5" />}
             />
             <MetricCard
               title="Balance"
