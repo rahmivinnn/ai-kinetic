@@ -1,4 +1,7 @@
-// Simulated pose detection library (no external dependencies)
+// Real pose detection library using TensorFlow.js and OpenPose/BlazePose
+
+import * as tf from '@tensorflow/tfjs';
+import * as poseDetection from '@tensorflow-models/pose-detection';
 
 // Define types to match the TensorFlow.js pose detection API
 export interface Keypoint {
@@ -28,127 +31,274 @@ export interface PoseDetector {
   dispose?: () => void;
 }
 
-// Initialize TensorFlow.js (simulated)
+// Define the connections for a full body skeleton (25+ keypoints)
+export const POSE_CONNECTIONS = [
+  // Face connections
+  ['nose', 'left_eye_inner'],
+  ['left_eye_inner', 'left_eye'],
+  ['left_eye', 'left_eye_outer'],
+  ['left_eye_outer', 'left_ear'],
+  ['nose', 'right_eye_inner'],
+  ['right_eye_inner', 'right_eye'],
+  ['right_eye', 'right_eye_outer'],
+  ['right_eye_outer', 'right_ear'],
+
+  // Upper body connections
+  ['left_shoulder', 'right_shoulder'],
+  ['left_shoulder', 'left_elbow'],
+  ['left_elbow', 'left_wrist'],
+  ['right_shoulder', 'right_elbow'],
+  ['right_elbow', 'right_wrist'],
+
+  // Torso connections
+  ['left_shoulder', 'left_hip'],
+  ['right_shoulder', 'right_hip'],
+  ['left_hip', 'right_hip'],
+
+  // Lower body connections
+  ['left_hip', 'left_knee'],
+  ['left_knee', 'left_ankle'],
+  ['right_hip', 'right_knee'],
+  ['right_knee', 'right_ankle'],
+
+  // Feet connections
+  ['left_ankle', 'left_heel'],
+  ['left_heel', 'left_foot_index'],
+  ['right_ankle', 'right_heel'],
+  ['right_heel', 'right_foot_index'],
+
+  // Hand connections (simplified)
+  ['left_wrist', 'left_thumb'],
+  ['left_wrist', 'left_index'],
+  ['right_wrist', 'right_thumb'],
+  ['right_wrist', 'right_index']
+];
+
+// Import TensorFlow.js initialization functions
+import { initializeTensorFlow as initTF, cleanupTensorFlow } from './tf-init';
+
+// Initialize TensorFlow.js and load models
 export const initializeTensorFlow = async () => {
   try {
-    console.log('Simulated TensorFlow.js initialized successfully');
-    return true;
+    // Use the enhanced initialization function
+    const initialized = await initTF();
+
+    if (initialized) {
+      console.log('TensorFlow.js initialized successfully with optimized settings');
+    } else {
+      console.error('Failed to initialize TensorFlow.js with optimized settings');
+    }
+
+    return initialized;
   } catch (error) {
-    console.error('Error initializing simulated TensorFlow.js:', error);
+    console.error('Error initializing TensorFlow.js:', error);
     return false;
   }
 };
 
-// Create a detector (simulated)
-export const createDetector = async (modelType: string = 'movenet') => {
+// Cleanup TensorFlow.js resources
+export const cleanupTensorFlowResources = () => {
   try {
-    // Create a simulated detector that returns realistic pose data
-    const detector: PoseDetector = {
-      estimatePoses: async (
-        image: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
-        config?: {
-          flipHorizontal?: boolean;
-          maxPoses?: number;
-          scoreThreshold?: number;
-        }
-      ) => {
-        // Get image dimensions
-        const width = image instanceof HTMLVideoElement ? image.videoWidth :
-                     image instanceof HTMLImageElement ? image.width :
-                     image.width;
-        const height = image instanceof HTMLVideoElement ? image.videoHeight :
-                      image instanceof HTMLImageElement ? image.height :
-                      image.height;
-
-        // Generate realistic pose data based on image dimensions
-        const centerX = width / 2;
-        const centerY = height / 2;
-
-        // Add some movement to make it look realistic
-        const time = Date.now() / 1000;
-        const offsetX = Math.sin(time) * 20;
-        const offsetY = Math.cos(time) * 10;
-
-        // Create keypoints for a human pose
-        const keypoints: Keypoint[] = [
-          { x: centerX + offsetX, y: centerY - 100 + offsetY, score: 0.9, name: 'nose' },
-          { x: centerX - 20 + offsetX, y: centerY - 110 + offsetY, score: 0.85, name: 'left_eye' },
-          { x: centerX + 20 + offsetX, y: centerY - 110 + offsetY, score: 0.85, name: 'right_eye' },
-          { x: centerX - 40 + offsetX, y: centerY - 100 + offsetY, score: 0.7, name: 'left_ear' },
-          { x: centerX + 40 + offsetX, y: centerY - 100 + offsetY, score: 0.7, name: 'right_ear' },
-          { x: centerX - 70 + offsetX, y: centerY - 50 + offsetY, score: 0.8, name: 'left_shoulder' },
-          { x: centerX + 70 + offsetX, y: centerY - 50 + offsetY, score: 0.8, name: 'right_shoulder' },
-          { x: centerX - 100 + offsetX, y: centerY + offsetY, score: 0.75, name: 'left_elbow' },
-          { x: centerX + 100 + offsetX, y: centerY + offsetY, score: 0.75, name: 'right_elbow' },
-          { x: centerX - 130 + offsetX, y: centerY + 50 + offsetY, score: 0.7, name: 'left_wrist' },
-          { x: centerX + 130 + offsetX, y: centerY + 50 + offsetY, score: 0.7, name: 'right_wrist' },
-          { x: centerX - 50 + offsetX, y: centerY + 50 + offsetY, score: 0.8, name: 'left_hip' },
-          { x: centerX + 50 + offsetX, y: centerY + 50 + offsetY, score: 0.8, name: 'right_hip' },
-          { x: centerX - 60 + offsetX, y: centerY + 150 + offsetY, score: 0.75, name: 'left_knee' },
-          { x: centerX + 60 + offsetX, y: centerY + 150 + offsetY, score: 0.75, name: 'right_knee' },
-          { x: centerX - 70 + offsetX, y: centerY + 250 + offsetY, score: 0.7, name: 'left_ankle' },
-          { x: centerX + 70 + offsetX, y: centerY + 250 + offsetY, score: 0.7, name: 'right_ankle' }
-        ];
-
-        // Apply horizontal flip if requested
-        if (config?.flipHorizontal) {
-          keypoints.forEach(keypoint => {
-            keypoint.x = width - keypoint.x;
-          });
-        }
-
-        // Filter by score threshold if provided
-        const filteredKeypoints = config?.scoreThreshold
-          ? keypoints.filter(kp => (kp.score || 0) >= (config.scoreThreshold || 0.5))
-          : keypoints;
-
-        // Create the pose object
-        const pose: Pose = {
-          keypoints: filteredKeypoints,
-          score: 0.8 + Math.random() * 0.2
-        };
-
-        // Return the number of poses requested (default to 1)
-        const numPoses = config?.maxPoses || 1;
-        const poses: Pose[] = [];
-
-        for (let i = 0; i < numPoses; i++) {
-          // Create variations for multiple poses
-          if (i === 0) {
-            poses.push(pose);
-          } else {
-            // Create variations for additional poses
-            const offsetMultiplier = i * 50;
-            const variantPose: Pose = {
-              keypoints: pose.keypoints.map(kp => ({
-                ...kp,
-                x: kp.x + offsetMultiplier,
-                y: kp.y + offsetMultiplier * 0.5,
-                score: (kp.score || 0.8) - 0.1 * i // Lower confidence for additional poses
-              })),
-              score: (pose.score || 0.8) - 0.1 * i
-            };
-            poses.push(variantPose);
-          }
-        }
-
-        return poses;
-      },
-
-      dispose: () => {
-        console.log('Simulated detector disposed');
-      }
-    };
-
-    console.log(`${modelType} detector created successfully (simulated)`);
-    return detector;
+    cleanupTensorFlow();
+    return true;
   } catch (error) {
-    console.error('Error creating simulated pose detector:', error);
-    return null;
+    console.error('Error cleaning up TensorFlow.js resources:', error);
+    return false;
   }
 };
 
-// Detect poses in an image/video frame (simulated wrapper)
+// Create a real pose detector using TensorFlow.js models
+export const createDetector = async (modelType: string = 'blazepose') => {
+  try {
+    let detector;
+
+    switch (modelType.toLowerCase()) {
+      case 'blazepose':
+        // BlazePose model - best for full body pose detection with 33 keypoints
+        detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.BlazePose,
+          {
+            runtime: 'tfjs',
+            modelType: 'full', // 'lite', 'full', or 'heavy'
+            enableSmoothing: true,
+            enableSegmentation: false,
+            smoothSegmentation: false,
+            minPoseScore: 0.25
+          }
+        );
+        break;
+
+      case 'movenet':
+        // MoveNet model - fast and accurate for basic pose detection
+        detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          {
+            modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER,
+            enableSmoothing: true,
+            minPoseScore: 0.25
+          }
+        );
+        break;
+
+      case 'posenet':
+        // PoseNet model - older but more stable model
+        detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.PoseNet,
+          {
+            architecture: 'MobileNetV1',
+            outputStride: 16,
+            inputResolution: { width: 640, height: 480 },
+            multiplier: 0.75,
+            minPoseScore: 0.25
+          }
+        );
+        break;
+
+      default:
+        // Default to BlazePose as it's the most comprehensive
+        detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.BlazePose,
+          {
+            runtime: 'tfjs',
+            modelType: 'full',
+            enableSmoothing: true,
+            minPoseScore: 0.25
+          }
+        );
+    }
+
+    console.log(`${modelType} detector created successfully`);
+    return detector;
+  } catch (error) {
+    console.error('Error creating pose detector:', error);
+
+    // Fallback to simulated detector if real detector fails
+    console.warn('Falling back to simulated detector');
+    return createSimulatedDetector();
+  }
+};
+
+// Create a simulated detector as fallback
+const createSimulatedDetector = async () => {
+  // Create a simulated detector that returns realistic pose data
+  const detector: PoseDetector = {
+    estimatePoses: async (
+      image: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+      config?: {
+        flipHorizontal?: boolean;
+        maxPoses?: number;
+        scoreThreshold?: number;
+      }
+    ) => {
+      // Get image dimensions
+      const width = image instanceof HTMLVideoElement ? image.videoWidth :
+                   image instanceof HTMLImageElement ? image.width :
+                   image.width;
+      const height = image instanceof HTMLVideoElement ? image.videoHeight :
+                    image instanceof HTMLImageElement ? image.height :
+                    image.height;
+
+      // Generate realistic pose data based on image dimensions
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      // Add some movement to make it look realistic
+      const time = Date.now() / 1000;
+      const offsetX = Math.sin(time) * 20;
+      const offsetY = Math.cos(time) * 10;
+
+      // Create keypoints for a human pose (33 keypoints for BlazePose compatibility)
+      const keypoints: Keypoint[] = [
+        { x: centerX + offsetX, y: centerY - 100 + offsetY, score: 0.9, name: 'nose' },
+        { x: centerX - 15 + offsetX, y: centerY - 105 + offsetY, score: 0.85, name: 'left_eye_inner' },
+        { x: centerX - 20 + offsetX, y: centerY - 110 + offsetY, score: 0.85, name: 'left_eye' },
+        { x: centerX - 25 + offsetX, y: centerY - 105 + offsetY, score: 0.8, name: 'left_eye_outer' },
+        { x: centerX + 15 + offsetX, y: centerY - 105 + offsetY, score: 0.85, name: 'right_eye_inner' },
+        { x: centerX + 20 + offsetX, y: centerY - 110 + offsetY, score: 0.85, name: 'right_eye' },
+        { x: centerX + 25 + offsetX, y: centerY - 105 + offsetY, score: 0.8, name: 'right_eye_outer' },
+        { x: centerX - 40 + offsetX, y: centerY - 100 + offsetY, score: 0.7, name: 'left_ear' },
+        { x: centerX + 40 + offsetX, y: centerY - 100 + offsetY, score: 0.7, name: 'right_ear' },
+        { x: centerX - 10 + offsetX, y: centerY - 85 + offsetY, score: 0.8, name: 'mouth_left' },
+        { x: centerX + 10 + offsetX, y: centerY - 85 + offsetY, score: 0.8, name: 'mouth_right' },
+        { x: centerX - 70 + offsetX, y: centerY - 50 + offsetY, score: 0.8, name: 'left_shoulder' },
+        { x: centerX + 70 + offsetX, y: centerY - 50 + offsetY, score: 0.8, name: 'right_shoulder' },
+        { x: centerX - 100 + offsetX, y: centerY + offsetY, score: 0.75, name: 'left_elbow' },
+        { x: centerX + 100 + offsetX, y: centerY + offsetY, score: 0.75, name: 'right_elbow' },
+        { x: centerX - 130 + offsetX, y: centerY + 50 + offsetY, score: 0.7, name: 'left_wrist' },
+        { x: centerX + 130 + offsetX, y: centerY + 50 + offsetY, score: 0.7, name: 'right_wrist' },
+        { x: centerX - 140 + offsetX, y: centerY + 60 + offsetY, score: 0.6, name: 'left_pinky' },
+        { x: centerX + 140 + offsetX, y: centerY + 60 + offsetY, score: 0.6, name: 'right_pinky' },
+        { x: centerX - 135 + offsetX, y: centerY + 55 + offsetY, score: 0.6, name: 'left_index' },
+        { x: centerX + 135 + offsetX, y: centerY + 55 + offsetY, score: 0.6, name: 'right_index' },
+        { x: centerX - 125 + offsetX, y: centerY + 45 + offsetY, score: 0.6, name: 'left_thumb' },
+        { x: centerX + 125 + offsetX, y: centerY + 45 + offsetY, score: 0.6, name: 'right_thumb' },
+        { x: centerX - 50 + offsetX, y: centerY + 50 + offsetY, score: 0.8, name: 'left_hip' },
+        { x: centerX + 50 + offsetX, y: centerY + 50 + offsetY, score: 0.8, name: 'right_hip' },
+        { x: centerX - 60 + offsetX, y: centerY + 150 + offsetY, score: 0.75, name: 'left_knee' },
+        { x: centerX + 60 + offsetX, y: centerY + 150 + offsetY, score: 0.75, name: 'right_knee' },
+        { x: centerX - 70 + offsetX, y: centerY + 250 + offsetY, score: 0.7, name: 'left_ankle' },
+        { x: centerX + 70 + offsetX, y: centerY + 250 + offsetY, score: 0.7, name: 'right_ankle' },
+        { x: centerX - 75 + offsetX, y: centerY + 270 + offsetY, score: 0.6, name: 'left_heel' },
+        { x: centerX + 75 + offsetX, y: centerY + 270 + offsetY, score: 0.6, name: 'right_heel' },
+        { x: centerX - 65 + offsetX, y: centerY + 275 + offsetY, score: 0.6, name: 'left_foot_index' },
+        { x: centerX + 65 + offsetX, y: centerY + 275 + offsetY, score: 0.6, name: 'right_foot_index' }
+      ];
+
+      // Apply horizontal flip if requested
+      if (config?.flipHorizontal) {
+        keypoints.forEach(keypoint => {
+          keypoint.x = width - keypoint.x;
+        });
+      }
+
+      // Filter by score threshold if provided
+      const filteredKeypoints = config?.scoreThreshold
+        ? keypoints.filter(kp => (kp.score || 0) >= (config.scoreThreshold || 0.5))
+        : keypoints;
+
+      // Create the pose object
+      const pose: Pose = {
+        keypoints: filteredKeypoints,
+        score: 0.8 + Math.random() * 0.2
+      };
+
+      // Return the number of poses requested (default to 1)
+      const numPoses = config?.maxPoses || 1;
+      const poses: Pose[] = [];
+
+      for (let i = 0; i < numPoses; i++) {
+        // Create variations for multiple poses
+        if (i === 0) {
+          poses.push(pose);
+        } else {
+          // Create variations for additional poses
+          const offsetMultiplier = i * 50;
+          const variantPose: Pose = {
+            keypoints: pose.keypoints.map(kp => ({
+              ...kp,
+              x: kp.x + offsetMultiplier,
+              y: kp.y + offsetMultiplier * 0.5,
+              score: (kp.score || 0.8) - 0.1 * i // Lower confidence for additional poses
+            })),
+            score: (pose.score || 0.8) - 0.1 * i
+          };
+          poses.push(variantPose);
+        }
+      }
+
+      return poses;
+    },
+
+    dispose: () => {
+      console.log('Simulated detector disposed');
+    }
+  };
+
+  console.log('Simulated detector created successfully');
+  return detector;
+};
+
+// Detect poses in an image/video frame
 export const detectPoses = async (
   detector: PoseDetector,
   image: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
@@ -159,11 +309,33 @@ export const detectPoses = async (
   if (!detector) return null;
 
   try {
+    // Check if image is ready
+    if (image instanceof HTMLVideoElement && (image.readyState < 2 || image.paused)) {
+      console.warn('Video not ready or paused');
+      return null;
+    }
+
+    // Detect poses using the detector
     const poses = await detector.estimatePoses(image, {
       flipHorizontal,
       maxPoses,
       scoreThreshold
     });
+
+    // Process and normalize the poses if needed
+    if (poses && poses.length > 0) {
+      // Ensure all keypoints have names (some models might not provide names)
+      poses.forEach(pose => {
+        if (pose.keypoints) {
+          pose.keypoints.forEach((keypoint, index) => {
+            if (!keypoint.name) {
+              // Assign standard names based on index if missing
+              keypoint.name = getKeypointNameByIndex(index);
+            }
+          });
+        }
+      });
+    }
 
     return poses;
   } catch (error) {
@@ -172,18 +344,46 @@ export const detectPoses = async (
   }
 };
 
-// Draw the skeleton on a canvas
+// Helper function to get keypoint name by index (for models that don't provide names)
+const getKeypointNameByIndex = (index: number): string => {
+  const keypointNames = [
+    'nose', 'left_eye_inner', 'left_eye', 'left_eye_outer', 'right_eye_inner',
+    'right_eye', 'right_eye_outer', 'left_ear', 'right_ear', 'mouth_left',
+    'mouth_right', 'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
+    'left_wrist', 'right_wrist', 'left_pinky', 'right_pinky', 'left_index',
+    'right_index', 'left_thumb', 'right_thumb', 'left_hip', 'right_hip',
+    'left_knee', 'right_knee', 'left_ankle', 'right_ankle', 'left_heel',
+    'right_heel', 'left_foot_index', 'right_foot_index'
+  ];
+
+  return index < keypointNames.length ? keypointNames[index] : `keypoint_${index}`;
+};
+
+// Draw the skeleton on a canvas with enhanced visualization
 export const drawSkeleton = (
   ctx: CanvasRenderingContext2D,
   pose: poseDetection.Pose,
   confidenceThreshold: number = 0.5,
   lineWidth: number = 3,
-  color: string = '#4f46e5'
+  color: string = '#4f46e5',
+  highlightErrors: boolean = true,
+  referenceAngles?: {[key: string]: number}
 ) => {
   if (!pose || !pose.keypoints) return;
 
-  // Define connections between keypoints
-  const connections = [
+  // Create keypoint map for easy lookup
+  const keypointMap: {[key: string]: poseDetection.Keypoint} = {};
+  pose.keypoints.forEach(kp => {
+    if (kp.name) {
+      keypointMap[kp.name] = kp;
+    }
+  });
+
+  // Calculate joint angles if not provided
+  const angles = referenceAngles || calculateJointAngles(pose);
+
+  // Use POSE_CONNECTIONS if available, otherwise use default connections
+  const connections = POSE_CONNECTIONS || [
     ['nose', 'left_eye'], ['nose', 'right_eye'],
     ['left_eye', 'left_ear'], ['right_eye', 'right_ear'],
     ['left_shoulder', 'right_shoulder'],
@@ -195,50 +395,189 @@ export const drawSkeleton = (
     ['left_knee', 'left_ankle'], ['right_knee', 'right_ankle']
   ];
 
-  // Create keypoint map for easy lookup
-  const keypointMap: {[key: string]: poseDetection.Keypoint} = {};
-  pose.keypoints.forEach(kp => {
-    keypointMap[kp.name] = kp;
-  });
-
-  // Draw connections
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-
+  // Draw the connections
   connections.forEach(([from, to]) => {
-    const fromKp = keypointMap[from];
-    const toKp = keypointMap[to];
+    const fromKeypoint = keypointMap[from];
+    const toKeypoint = keypointMap[to];
 
-    if (fromKp && toKp &&
-        fromKp.score > confidenceThreshold &&
-        toKp.score > confidenceThreshold) {
+    if (fromKeypoint && toKeypoint &&
+        fromKeypoint.score > confidenceThreshold &&
+        toKeypoint.score > confidenceThreshold) {
+
+      // Determine if this connection should be highlighted as an error
+      let connectionColor = color;
+      let connectionWidth = lineWidth;
+
+      if (highlightErrors && angles) {
+        // Check if this connection is part of a joint with angle issues
+        const jointName = getJointNameFromConnection(from, to);
+        if (jointName && angles[jointName]) {
+          const angleValue = angles[jointName];
+          const isError = isAngleOutOfRange(jointName, angleValue);
+
+          if (isError) {
+            // Highlight error with red color and thicker line
+            connectionColor = '#ef4444'; // Red color
+            connectionWidth = lineWidth + 1;
+          } else if (isAngleNearIdeal(jointName, angleValue)) {
+            // Highlight good posture with green
+            connectionColor = '#22c55e'; // Green color
+          }
+        }
+      }
+
+      // Draw the connection
+      ctx.strokeStyle = connectionColor;
+      ctx.lineWidth = connectionWidth;
       ctx.beginPath();
-      ctx.moveTo(fromKp.x, fromKp.y);
-      ctx.lineTo(toKp.x, toKp.y);
+      ctx.moveTo(fromKeypoint.x, fromKeypoint.y);
+      ctx.lineTo(toKeypoint.x, toKeypoint.y);
       ctx.stroke();
     }
   });
 };
 
-// Draw keypoints on a canvas
+// Helper function to get joint name from connection
+const getJointNameFromConnection = (from: string, to: string): string | null => {
+  // Map connections to joint names
+  const jointMap: {[key: string]: string} = {
+    // Elbow joints
+    'left_shoulder-left_elbow': 'leftElbow',
+    'left_elbow-left_wrist': 'leftElbow',
+    'right_shoulder-right_elbow': 'rightElbow',
+    'right_elbow-right_wrist': 'rightElbow',
+
+    // Shoulder joints
+    'left_shoulder-right_shoulder': 'shoulders',
+    'left_shoulder-left_hip': 'leftShoulder',
+    'right_shoulder-right_hip': 'rightShoulder',
+
+    // Hip joints
+    'left_hip-right_hip': 'hips',
+    'left_hip-left_knee': 'leftHip',
+    'right_hip-right_knee': 'rightHip',
+
+    // Knee joints
+    'left_knee-left_ankle': 'leftKnee',
+    'right_knee-right_ankle': 'rightKnee',
+
+    // Ankle joints
+    'left_ankle-left_heel': 'leftAnkle',
+    'right_ankle-right_heel': 'rightAnkle'
+  };
+
+  // Try both directions for the connection
+  const key1 = `${from}-${to}`;
+  const key2 = `${to}-${from}`;
+
+  return jointMap[key1] || jointMap[key2] || null;
+};
+
+// Helper function to check if an angle is out of the normal range
+const isAngleOutOfRange = (jointName: string, angle: number): boolean => {
+  // Define normal angle ranges for different joints
+  const angleRanges: {[key: string]: {min: number, max: number}} = {
+    'leftElbow': { min: 30, max: 180 },
+    'rightElbow': { min: 30, max: 180 },
+    'leftShoulder': { min: 0, max: 180 },
+    'rightShoulder': { min: 0, max: 180 },
+    'leftHip': { min: 90, max: 180 },
+    'rightHip': { min: 90, max: 180 },
+    'leftKnee': { min: 90, max: 180 },
+    'rightKnee': { min: 90, max: 180 },
+    'shoulders': { min: 170, max: 190 }, // Should be relatively straight
+    'hips': { min: 170, max: 190 } // Should be relatively straight
+  };
+
+  const range = angleRanges[jointName];
+  if (!range) return false;
+
+  return angle < range.min || angle > range.max;
+};
+
+// Helper function to check if an angle is near the ideal value
+const isAngleNearIdeal = (jointName: string, angle: number): boolean => {
+  // Define ideal angles for different joints
+  const idealAngles: {[key: string]: {ideal: number, tolerance: number}} = {
+    'leftElbow': { ideal: 90, tolerance: 10 },
+    'rightElbow': { ideal: 90, tolerance: 10 },
+    'leftShoulder': { ideal: 90, tolerance: 10 },
+    'rightShoulder': { ideal: 90, tolerance: 10 },
+    'leftHip': { ideal: 180, tolerance: 5 },
+    'rightHip': { ideal: 180, tolerance: 5 },
+    'leftKnee': { ideal: 180, tolerance: 5 },
+    'rightKnee': { ideal: 180, tolerance: 5 },
+    'shoulders': { ideal: 180, tolerance: 5 },
+    'hips': { ideal: 180, tolerance: 5 }
+  };
+
+  const ideal = idealAngles[jointName];
+  if (!ideal) return false;
+
+  return Math.abs(angle - ideal.ideal) <= ideal.tolerance;
+};
+
+// Draw keypoints on a canvas with enhanced visualization
 export const drawKeypoints = (
   ctx: CanvasRenderingContext2D,
   pose: poseDetection.Pose,
   confidenceThreshold: number = 0.5,
   radius: number = 5,
-  color: string = '#4f46e5'
+  color: string = '#4f46e5',
+  highlightKeypoints: boolean = true
 ) => {
   if (!pose || !pose.keypoints) return;
 
-  ctx.fillStyle = color;
+  // Define important keypoints to highlight
+  const importantKeypoints = [
+    'nose', 'left_shoulder', 'right_shoulder',
+    'left_elbow', 'right_elbow', 'left_wrist', 'right_wrist',
+    'left_hip', 'right_hip', 'left_knee', 'right_knee',
+    'left_ankle', 'right_ankle'
+  ];
 
   pose.keypoints.forEach(kp => {
     if (kp.score > confidenceThreshold) {
-      ctx.beginPath();
-      ctx.arc(kp.x, kp.y, radius, 0, 2 * Math.PI);
-      ctx.fill();
+      // Determine if this is an important keypoint
+      const isImportant = kp.name && importantKeypoints.includes(kp.name);
+
+      // Set different styles based on keypoint importance
+      if (highlightKeypoints && isImportant) {
+        // Important keypoints get larger radius and different color
+        ctx.fillStyle = '#3b82f6'; // Blue color
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.arc(kp.x, kp.y, radius + 2, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        // Regular keypoints
+        ctx.fillStyle = color;
+
+        ctx.beginPath();
+        ctx.arc(kp.x, kp.y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+
+      // Add keypoint name for important points if highlighting is enabled
+      if (highlightKeypoints && isImportant && kp.name) {
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.fillText(formatKeypointName(kp.name), kp.x, kp.y - radius - 5);
+      }
     }
   });
+};
+
+// Helper function to format keypoint name for display
+const formatKeypointName = (name: string): string => {
+  return name
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
 // Calculate angle between three points

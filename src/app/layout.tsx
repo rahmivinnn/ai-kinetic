@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import { MainNav } from "@/components/ui/main-nav";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,10 +28,33 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Preload TensorFlow.js for better performance */}
+        <link
+          rel="preload"
+          href="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"
+          as="script"
+        />
+        <link
+          rel="preload"
+          href="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.21.0/dist/tf-backend-webgl.min.js"
+          as="script"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
+        {/* Load TensorFlow.js scripts */}
+        <Script
+          src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"
+          strategy="beforeInteractive"
+        />
+        <Script
+          src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.21.0/dist/tf-backend-webgl.min.js"
+          strategy="beforeInteractive"
+        />
+
         <AuthProvider>
           <div className="min-h-screen flex flex-col">
             <header className="border-b border-border sticky top-0 z-50 bg-background">

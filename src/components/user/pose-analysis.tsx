@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Box, LayoutSplit, Layers, Stop, BarChart2, Balance, Anchor, AlignCenter } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertTriangle, Info, Activity, Zap, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Box, Layers, BarChart2, Anchor, AlignCenter } from 'lucide-react';
+import { Split as LayoutSplit } from 'lucide-react';
+import { Ban as Stop } from 'lucide-react';
+import { Scale as Balance } from 'lucide-react';
 
 // Define the PoseAnalysis component props
 interface PoseAnalysisProps {
