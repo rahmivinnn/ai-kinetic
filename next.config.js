@@ -15,8 +15,6 @@ const nextConfig = {
   // Image configuration
   images: {
     domains: ['images.unsplash.com', 'api.dicebear.com'],
-    // Only use unoptimized if needed for specific hosting
-    // unoptimized: true,
   },
   // Enable rewrites for Vercel deployment
   async rewrites() {

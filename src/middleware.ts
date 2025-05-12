@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
   // For Vercel deployment, we need to handle the case where cookies might not be available
   try {
@@ -8,10 +9,25 @@ export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
 
     // Public paths that don't require authentication
-    const publicPaths = ['/login', '/register', '/welcome', '/', '/pose-detection', '/enhanced-home'];
+    const publicPaths = [
+      '/login',
+      '/register',
+      '/welcome',
+      '/',
+      '/pose-detection',
+      '/enhanced-home',
+      '/openpose-analyzer',
+      '/pose-analysis',
+      '/pose-analyzer'
+    ];
 
     // Check if the path is a public path
-    const isPublicPath = publicPaths.some(publicPath => path === publicPath || path.startsWith('/api/'));
+    const isPublicPath = publicPaths.some(publicPath =>
+      path === publicPath ||
+      path.startsWith('/api/') ||
+      path.startsWith('/_next/') ||
+      path.includes('.') // Static files
+    );
 
     // If no token and trying to access protected route, redirect to login
     if (!token && !isPublicPath) {
@@ -39,8 +55,7 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public files
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
