@@ -52,7 +52,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
   const openPoseNetRef = useRef<any>(null);
   const poseHistoryRef = useRef<any[]>([]);
   const lastFeedbackTimeRef = useRef<number>(0);
-  
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<any>(null);
@@ -63,7 +63,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
   const [isMediaPipeSupported, setIsMediaPipeSupported] = useState(true);
   const [isOpenPoseSupported, setIsOpenPoseSupported] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
-  const [detectionMethod, setDetectionMethod] = useState<'mediapipe' | 'openpose'>('mediapipe');
+  const [detectionMethod, setDetectionMethod] = useState<'mediapipe' | 'openpose'>('openpose');
   const [poseMetrics, setPoseMetrics] = useState<PoseMetrics>({
     symmetryScore: 0,
     balanceScore: 0,
@@ -77,7 +77,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
     rangeOfMotion: 0,
     performanceHistory: []
   });
-  
+
   const [visualization3D, setVisualization3D] = useState({
     rotationX: 0,
     rotationY: 0,
@@ -159,11 +159,11 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
         });
 
         setIsMediaPipeLoaded(true);
-        toast.success('MediaPipe loaded successfully');
+        toast.success('OpenPose loaded successfully');
       } catch (error) {
-        console.error('Error loading MediaPipe:', error);
+        console.error('Error loading OpenPose:', error);
         setIsMediaPipeSupported(false);
-        toast.error('Failed to load MediaPipe. Your browser may not support it.');
+        toast.error('Failed to load OpenPose. Your browser may not support it.');
       }
     };
 
@@ -214,7 +214,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
             inputResolution: { width: 640, height: 480 },
             quantBytes: 2
           });
-          
+
           openPoseNetRef.current = net;
           setIsOpenPoseLoaded(true);
           toast.success('OpenPose loaded successfully');
@@ -360,10 +360,10 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
       rangeOfMotion: 0,
       performanceHistory: []
     };
-    
-    metrics.overallScore = (metrics.symmetryScore + metrics.balanceScore + 
+
+    metrics.overallScore = (metrics.symmetryScore + metrics.balanceScore +
       metrics.stabilityScore + metrics.alignmentScore) / 4;
-    
+
     return metrics;
   };
 
@@ -389,7 +389,7 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
 
   return (
     <div className="relative w-full h-full">
-      <div 
+      <div
         className={`relative w-full aspect-video bg-gradient-to-br from-gray-900 to-black rounded-xl overflow-hidden shadow-lg transition-all duration-500 ${isTransitioning ? 'scale-95 opacity-90 rotate-1' : 'scale-100 opacity-100 rotate-0'} hover:shadow-2xl`}
         style={{
           transform: `perspective(1000px) ${isTransitioning ? 'rotateX(2deg)' : 'rotateX(0deg)'}`
@@ -427,11 +427,11 @@ export function PoseAnalysis({ videoUrl, onAnalysisComplete, mode = 'live', refe
           />
         )}
 
-        <div 
+        <div
           className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
         >
           <div className="w-full h-1 bg-white/30 rounded-full mb-4 cursor-pointer">
-            <div 
+            <div
               className="h-full bg-primary rounded-full relative"
               style={{ width: `${(videoPlaybackState.currentTime / videoPlaybackState.duration) * 100}%` }}
             >

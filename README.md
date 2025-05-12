@@ -13,6 +13,38 @@ Kinetic AI is an AI-powered physiotherapy platform that helps patients recover f
 - **Secure Messaging**: Communicate with your physiotherapist through secure messaging
 - **Payment Integration**: Process payments securely through Stripe
 
+## UI Components
+
+The application includes the following UI components:
+
+### Action Buttons
+
+1. **Start Pose Detection**: Initiates OpenPose-based body pose detection
+2. **Upload Video**: Uploads user video for analysis (.mp4, .avi, .mov)
+3. **Analyze Pose**: Starts real-time analysis of body posture
+4. **Generate Feedback**: Gives health-related recommendations based on pose
+5. **Sign In/Sign Up**: Opens modal or redirects for user login/registration
+6. **View Pose Feedback**: Shows dynamic recommendations based on analysis
+7. **Retry Upload**: Reattempts video upload after failure
+8. **Update Profile**: Lets user modify profile info
+9. **Check Status**: Checks backend service health (OpenPose, Queue, DB)
+10. **Sync Data**: Triggers frontend-backend data sync
+11. **Check for Updates**: Fetches logs or version updates from backend
+12. **View Logs (Admin only)**: Displays server logs for debugging
+
+### Advanced Pose Analyzer Components
+
+1. **3D Pose Estimation**: Visualizes pose in 3D space with rotation and zoom controls
+2. **Multi-Person Detection**: Detects and tracks multiple people in a video
+3. **Frame Analysis**: Analyzes video frame by frame with navigation controls
+4. **Pose Templates**: Provides predefined pose templates for comparison
+5. **Movement Speed Tracker**: Tracks and visualizes movement speed
+6. **Symmetry Analyzer**: Analyzes body symmetry and alignment
+7. **Injury Risk Detector**: Identifies potential injury risks
+8. **Heat Map Visualizer**: Visualizes intensity of movement or pressure
+9. **Personalized Workout Generator**: Creates custom workouts based on pose analysis
+10. **Virtual Coach**: Provides real-time feedback during exercises
+
 ## Tech Stack
 
 ### Frontend

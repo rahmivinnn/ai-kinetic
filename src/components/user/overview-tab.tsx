@@ -310,7 +310,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        {/* MediaPipe Pose Analyzer Card */}
+        {/* OpenPose Analyzer Card */}
         <Card className="overflow-hidden border-2 border-primary/10 hover:shadow-lg transition-all duration-300 hover:border-primary/20">
           <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-500"></div>
           <CardContent className="p-6 pt-8">
@@ -322,7 +322,7 @@ export function OverviewTab() {
                 AI POSE ANALYSIS
               </span>
             </div>
-            <h3 className="text-lg font-semibold mb-3">MediaPipe Pose Analyzer</h3>
+            <h3 className="text-lg font-semibold mb-3">OpenPose Analyzer</h3>
 
             <div className="space-y-3 mb-4">
               <div className="p-3 bg-muted/50 rounded-lg">

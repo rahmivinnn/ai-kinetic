@@ -310,8 +310,6 @@ const UserHome = () => {
         </div>
       </div>
 
-      {/* Placeholder for dashboard content */}
-
       {/* Dashboard Content Tabs */}
       {dashboardNavTab === 'overview' && (
         <OverviewTab />

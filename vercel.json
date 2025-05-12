@@ -4,5 +4,20 @@
   "env": {
     "NEXT_PUBLIC_API_URL": "https://ai-kinetic-backend.vercel.app/api",
     "NEXT_PUBLIC_USE_MOCK_DATA": "true"
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cross-Origin-Embedder-Policy",
+          "value": "require-corp"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        }
+      ]
+    }
+  ]
 }
