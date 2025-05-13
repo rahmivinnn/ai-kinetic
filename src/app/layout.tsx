@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import { MainNav } from "@/components/ui/main-nav";
 import Script from "next/script";
+import ErrorBoundary from "@/components/error-boundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,24 +56,26 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
 
-        <AuthProvider>
-          <div className="min-h-screen flex flex-col">
-            <header className="border-b border-border sticky top-0 z-[100] bg-background shadow-sm">
-              <div className="container mx-auto py-4">
-                <MainNav />
-              </div>
-            </header>
-            <main className="flex-1 relative z-10">
-              {children}
-            </main>
-            <footer className="border-t border-border py-6 bg-muted/50 relative z-10">
-              <div className="container mx-auto text-center text-sm text-muted-foreground">
-                <p>© {new Date().getFullYear()} Kinetic AI. All rights reserved.</p>
-              </div>
-            </footer>
-          </div>
-          <Toaster position="top-right" richColors />
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            <div className="min-h-screen flex flex-col">
+              <header className="border-b border-border sticky top-0 z-[100] bg-background shadow-sm">
+                <div className="container mx-auto py-4">
+                  <MainNav />
+                </div>
+              </header>
+              <main className="flex-1 relative z-10">
+                {children}
+              </main>
+              <footer className="border-t border-border py-6 bg-muted/50 relative z-10">
+                <div className="container mx-auto text-center text-sm text-muted-foreground">
+                  <p>© {new Date().getFullYear()} Kinetic AI. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+            <Toaster position="top-right" richColors />
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

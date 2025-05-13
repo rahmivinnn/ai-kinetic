@@ -15,17 +15,25 @@ const nextConfig = {
   // Image configuration
   images: {
     domains: ['images.unsplash.com', 'api.dicebear.com'],
+    unoptimized: true,
   },
-  // Enable rewrites for Vercel deployment
+  // Output as a standalone build
+  output: 'standalone',
+  // Disable source maps in production
+  productionBrowserSourceMaps: false,
+  // Enable SWC minification
+  swcMinify: true,
+  // Disable rewrites as they're handled by Vercel config
   async rewrites() {
+    return [];
+  },
+  // Add redirects for common paths
+  async redirects() {
     return [
       {
-        source: '/:path*',
-        destination: '/:path*',
-      },
-      {
-        source: '/openpose-analyzer',
-        destination: '/openpose-analyzer',
+        source: '/home',
+        destination: '/',
+        permanent: true,
       },
     ];
   },

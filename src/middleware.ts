@@ -18,7 +18,15 @@ export function middleware(request: NextRequest) {
       '/enhanced-home',
       '/openpose-analyzer',
       '/pose-analysis',
-      '/pose-analyzer'
+      '/pose-analyzer',
+      '/dashboard',
+      '/video-library',
+      '/exercise-library',
+      '/profile',
+      '/settings',
+      '/ui-components',
+      '/404',
+      '/_error'
     ];
 
     // Check if the path is a public path
@@ -37,6 +45,11 @@ export function middleware(request: NextRequest) {
     // If token exists and trying to access login/register, redirect to dashboard
     if (token && (path === '/login' || path === '/register')) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // Handle 404 and error pages
+    if (path === '/404' || path === '/_error' || path.includes('DEPLOYMENT_NOT_FOUND')) {
+      return NextResponse.redirect(new URL('/', request.url));
     }
   } catch (error) {
     console.error('Middleware error:', error);
