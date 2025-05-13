@@ -57,21 +57,21 @@ export default function RootLayout({
 
         <AuthProvider>
           <div className="min-h-screen flex flex-col">
-            <header className="border-b border-border sticky top-0 z-50 bg-background">
+            <header className="border-b border-border sticky top-0 z-[100] bg-background shadow-sm">
               <div className="container mx-auto py-4">
                 <MainNav />
               </div>
             </header>
-            <main className="flex-1">
+            <main className="flex-1 relative z-10">
               {children}
             </main>
-            <footer className="border-t border-border py-6 bg-muted/50">
+            <footer className="border-t border-border py-6 bg-muted/50 relative z-10">
               <div className="container mx-auto text-center text-sm text-muted-foreground">
                 <p>© {new Date().getFullYear()} Kinetic AI. All rights reserved.</p>
               </div>
             </footer>
           </div>
-          <Toaster />
+          <Toaster position="top-right" richColors />
         </AuthProvider>
       </body>
     </html>

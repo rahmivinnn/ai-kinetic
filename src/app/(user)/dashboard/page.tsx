@@ -8,7 +8,8 @@ import { ExercisePlan } from "@/components/user/exercise-plan-fixed";
 import { VideoAnalysis } from "@/components/user/video-analysis";
 import { PersonalizedExercisePlan } from "@/components/user/personalized-exercise-plan";
 import { AIPhysiotherapyAssistant } from "@/components/user/ai-physiotherapy-assistant";
-import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw, Camera, Sparkles, Zap } from "lucide-react";
+import PoseAnalysisDashboard from "@/components/user/pose-analysis-dashboard";
+import { Activity, Calendar, MessageSquare, ArrowRight, Bell, Upload, BarChart, Video, ChevronUp, ChevronDown, Check, RefreshCw, Camera, Sparkles, Zap, Layers } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import Image from "next/image";
@@ -307,6 +308,13 @@ const UserHome = () => {
             <Zap className="h-4 w-4 mr-2" />
             AI Physio Assistant
           </div>
+          <div
+            className={`cursor-pointer py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${dashboardNavTab === '3d-analysis' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+            onClick={() => setDashboardNavTab('3d-analysis')}
+          >
+            <Layers className="h-4 w-4 mr-2" />
+            3D Pose Analysis
+          </div>
         </div>
       </div>
 
@@ -337,6 +345,10 @@ const UserHome = () => {
 
       {dashboardNavTab === 'ai-physio' && (
         <AIPhysiotherapyAssistant />
+      )}
+
+      {dashboardNavTab === '3d-analysis' && (
+        <PoseAnalysisDashboard />
       )}
 
       {/* Main Content Tabs - Only shown in Overview */}

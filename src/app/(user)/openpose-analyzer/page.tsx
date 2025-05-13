@@ -35,7 +35,8 @@ import {
   BarChart2,
   Activity,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  CalendarDays
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -227,119 +228,196 @@ export default function OpenPoseAnalyzerPage() {
 
   const startWebcam = async () => {
     try {
-      if (USE_SIMULATION) {
-        // Simulation mode - use browser's webcam API directly
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-        // Use the video element directly
-        if (streamRef.current) {
-          streamRef.current.srcObject = stream;
-
-          // Create a canvas for processing frames if needed
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-
-          // Set dimensions
-          canvas.width = 640;
-          canvas.height = 480;
-
-          // Store canvas for later use
-          (window as any).openPoseCanvas = canvas;
-          (window as any).openPoseContext = ctx;
-
-          // Function to process video frames (for pose detection simulation)
-          const processFrame = () => {
-            if (streamRef.current && streamRef.current.readyState === streamRef.current.HAVE_ENOUGH_DATA) {
-              // Only process frames when analyzing
-              if (isAnalyzing) {
-                ctx?.drawImage(streamRef.current, 0, 0, canvas.width, canvas.height);
-
-                // Here we would normally do pose detection
-                // For simulation, we'll draw a skeleton on the canvas
-                drawSimulatedSkeleton(ctx, canvas.width, canvas.height, isAnalyzing);
-
-                // If we need a fallback image (e.g., for browsers that don't support video)
-                const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
-                if (fallbackImg) {
-                  fallbackImg.src = canvas.toDataURL('image/jpeg');
-                }
-              }
-            }
-
-            if (isStreaming) {
-              requestAnimationFrame(processFrame);
-            }
-          };
-
-          // Start processing frames
-          streamRef.current.onloadedmetadata = () => {
-            processFrame();
-          };
+      // Use browser's webcam API directly with TensorFlow.js integration
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: 'user'
         }
+      });
 
-        // Store stream reference for cleanup
-        (window as any).openPoseStream = stream;
+      // Use the video element directly
+      if (streamRef.current) {
+        streamRef.current.srcObject = stream;
 
-        setIsStreaming(true);
+        // Create a canvas for processing frames
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
 
-        toast.success('Webcam started', {
-          description: 'Camera stream is now active (Simulation Mode)',
-          duration: 3000
-        });
-      } else {
-        // Real API mode
-        await fetch(`${API_URL}/start_webcam`, {
-          method: 'POST',
-        });
+        // Set dimensions
+        canvas.width = 640;
+        canvas.height = 480;
 
-        setIsStreaming(true);
+        // Store canvas for later use
+        (window as any).openPoseCanvas = canvas;
+        (window as any).openPoseContext = ctx;
 
-        if (streamRef.current) {
-          streamRef.current.src = `${API_URL}/webcam_stream`;
-        }
-
-        toast.success('Webcam started', {
-          description: 'Camera stream is now active',
-          duration: 3000
-        });
-      }
-    } catch (error) {
-      console.error('Error starting webcam:', error);
-
-      // Fallback to simulation if real API fails
-      if (!USE_SIMULATION) {
-        toast.error('Failed to connect to API server', {
-          description: 'Falling back to simulation mode',
-          duration: 5000
-        });
-
-        // Try again with simulation
+        // Initialize TensorFlow.js and pose detector
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          if (streamRef.current) {
-            const videoEl = document.createElement('video');
-            videoEl.srcObject = stream;
-            videoEl.autoplay = true;
+          // Import TensorFlow.js and pose detection dynamically
+          const tf = await import('@tensorflow/tfjs');
+          await import('@tensorflow/tfjs-backend-webgl');
+          const poseDetection = await import('@tensorflow-models/pose-detection');
 
-            // Store for cleanup
-            (window as any).openPoseStream = stream;
-            (window as any).openPoseVideo = videoEl;
+          // Initialize TensorFlow.js
+          await tf.setBackend('webgl');
+          await tf.ready();
 
-            setIsStreaming(true);
+          // Create detector
+          const detector = await poseDetection.createDetector(
+            poseDetection.SupportedModels.BlazePose,
+            {
+              runtime: 'tfjs',
+              modelType: 'full',
+              enableSmoothing: true
+            }
+          );
 
-            toast.success('Webcam started (Fallback Mode)', {
-              duration: 3000
-            });
-          }
-        } catch (fallbackError) {
-          toast.error('Failed to start webcam', {
-            description: 'Please check your camera permissions',
+          // Store detector for later use
+          (window as any).openPoseDetector = detector;
+
+          toast.success('Pose detection model loaded', {
+            description: 'Using TensorFlow.js with BlazePose model',
+            duration: 3000
+          });
+        } catch (tfError) {
+          console.error('Error initializing TensorFlow.js:', tfError);
+          toast.error('Failed to load pose detection model', {
+            description: 'Falling back to simulation mode',
             duration: 5000
           });
         }
-      } else {
+
+        // Function to process video frames with real pose detection
+        const processFrame = async () => {
+          if (streamRef.current && streamRef.current.readyState === streamRef.current.HAVE_ENOUGH_DATA) {
+            // Only process frames when analyzing
+            if (isAnalyzing) {
+              ctx?.drawImage(streamRef.current, 0, 0, canvas.width, canvas.height);
+
+              // Real pose detection using TensorFlow.js
+              const detector = (window as any).openPoseDetector;
+              if (detector) {
+                try {
+                  // Detect poses
+                  const poses = await detector.estimatePoses(streamRef.current, {
+                    flipHorizontal: true,
+                    maxPoses: 1,
+                    scoreThreshold: 0.5
+                  });
+
+                  if (poses && poses.length > 0) {
+                    const pose = poses[0];
+
+                    // Clear canvas before drawing
+                    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx?.drawImage(streamRef.current, 0, 0, canvas.width, canvas.height);
+
+                    // Draw skeleton if enabled
+                    if (showSkeleton) {
+                      drawRealSkeleton(ctx, pose, canvas.width, canvas.height);
+                    }
+
+                    // Calculate and update joint angles
+                    if (pose.keypoints) {
+                      const angles = calculateJointAngles(pose);
+                      setJointAngles(angles);
+
+                      // Update confidence scores
+                      const scores: Record<string, number> = {};
+                      pose.keypoints.forEach(keypoint => {
+                        if (keypoint.name && keypoint.score) {
+                          scores[keypoint.name] = keypoint.score;
+                        }
+                      });
+                      setConfidenceScores(scores);
+
+                      // Calculate overall accuracy
+                      const avgConfidence = Object.values(scores).reduce((sum, score) => sum + score, 0) /
+                                           Object.values(scores).length;
+                      setAccuracy(Math.round(avgConfidence * 100));
+
+                      // Generate feedback based on pose
+                      generatePoseFeedback(pose, angles);
+                    }
+                  }
+                } catch (detectionError) {
+                  console.error('Error in pose detection:', detectionError);
+                  // Fallback to simulation if detection fails
+                  drawSimulatedSkeleton(ctx, canvas.width, canvas.height, isAnalyzing);
+                }
+              } else {
+                // Fallback to simulation if detector not available
+                drawSimulatedSkeleton(ctx, canvas.width, canvas.height, isAnalyzing);
+              }
+
+              // Update fallback image
+              const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
+              if (fallbackImg) {
+                fallbackImg.src = canvas.toDataURL('image/jpeg');
+              }
+            }
+          }
+
+          if (isStreaming) {
+            requestAnimationFrame(processFrame);
+          }
+        };
+
+        // Start processing frames
+        streamRef.current.onloadedmetadata = () => {
+          streamRef.current?.play();
+          processFrame();
+        };
+      }
+
+      // Store stream reference for cleanup
+      (window as any).openPoseStream = stream;
+
+      setIsStreaming(true);
+
+      toast.success('Webcam started', {
+        description: 'Camera stream is now active with real-time pose detection',
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Error starting webcam:', error);
+
+      toast.error('Failed to start webcam', {
+        description: 'Please check your camera permissions',
+        duration: 5000
+      });
+
+      // Try fallback approach
+      try {
+        const constraints = {
+          video: {
+            width: 320,
+            height: 240,
+            facingMode: 'user'
+          }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        if (streamRef.current) {
+          streamRef.current.srcObject = stream;
+          streamRef.current.play();
+
+          // Store for cleanup
+          (window as any).openPoseStream = stream;
+
+          setIsStreaming(true);
+
+          toast.success('Webcam started (Fallback Mode)', {
+            description: 'Using lower resolution camera',
+            duration: 3000
+          });
+        }
+      } catch (fallbackError) {
         toast.error('Failed to start webcam', {
-          description: 'Please check your camera permissions',
+          description: 'Camera access is required for this feature',
           duration: 5000
         });
       }
@@ -348,74 +426,88 @@ export default function OpenPoseAnalyzerPage() {
 
   const stopWebcam = async () => {
     try {
-      if (USE_SIMULATION) {
-        // Simulation mode - clean up browser webcam resources
-        if ((window as any).openPoseStream) {
-          const stream = (window as any).openPoseStream as MediaStream;
-          stream.getTracks().forEach(track => track.stop());
-          (window as any).openPoseStream = null;
-          // Clean up canvas resources
-          (window as any).openPoseCanvas = null;
-          (window as any).openPoseContext = null;
-        }
-
-        setIsStreaming(false);
-
-        if (streamRef.current) {
-          streamRef.current.srcObject = null;
-        }
-
-        // Also clear fallback image if it exists
-        const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
-        if (fallbackImg) {
-          fallbackImg.src = '';
-        }
-      } else {
-        // Real API mode
-        await fetch(`${API_URL}/stop_webcam`, {
-          method: 'POST',
-        });
-
-        setIsStreaming(false);
-
-        if (streamRef.current) {
-          streamRef.current.srcObject = null;
-        }
-
-        // Also clear fallback image if it exists
-        const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
-        if (fallbackImg) {
-          fallbackImg.src = '';
-        }
-      }
-    } catch (error) {
-      console.error('Error stopping webcam:', error);
-
-      // Even if API call fails, try to clean up browser resources
+      // Clean up browser webcam resources
       if ((window as any).openPoseStream) {
+        const stream = (window as any).openPoseStream as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        (window as any).openPoseStream = null;
+      }
+
+      // Clean up TensorFlow.js resources
+      if ((window as any).openPoseDetector) {
         try {
-          const stream = (window as any).openPoseStream as MediaStream;
-          stream.getTracks().forEach(track => track.stop());
-          (window as any).openPoseStream = null;
-          // Clean up canvas resources
-          (window as any).openPoseCanvas = null;
-          (window as any).openPoseContext = null;
-        } catch (cleanupError) {
-          console.error('Error cleaning up webcam resources:', cleanupError);
+          // Dispose of the detector if it has a dispose method
+          if (typeof (window as any).openPoseDetector.dispose === 'function') {
+            await (window as any).openPoseDetector.dispose();
+          }
+          (window as any).openPoseDetector = null;
+
+          // Clean up TensorFlow.js memory
+          const tf = await import('@tensorflow/tfjs');
+          await tf.disposeVariables();
+          tf.engine().endScope();
+          tf.engine().disposeVariables();
+
+          console.log('TensorFlow.js resources cleaned up');
+        } catch (tfError) {
+          console.error('Error cleaning up TensorFlow.js resources:', tfError);
         }
       }
+
+      // Clean up canvas resources
+      (window as any).openPoseCanvas = null;
+      (window as any).openPoseContext = null;
 
       setIsStreaming(false);
 
+      // Clear video element
       if (streamRef.current) {
         streamRef.current.srcObject = null;
+        streamRef.current.pause();
       }
 
-      // Also clear fallback image if it exists
+      // Clear fallback image if it exists
       const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
       if (fallbackImg) {
         fallbackImg.src = '';
       }
+
+      toast.info('Camera stopped', {
+        description: 'All resources have been cleaned up',
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Error stopping webcam:', error);
+
+      // Even if the main cleanup fails, try to clean up browser resources
+      try {
+        if ((window as any).openPoseStream) {
+          const stream = (window as any).openPoseStream as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+          (window as any).openPoseStream = null;
+        }
+
+        // Clear video element
+        if (streamRef.current) {
+          streamRef.current.srcObject = null;
+          streamRef.current.pause();
+        }
+
+        // Clear fallback image
+        const fallbackImg = document.getElementById('fallbackStream') as HTMLImageElement;
+        if (fallbackImg) {
+          fallbackImg.src = '';
+        }
+
+        setIsStreaming(false);
+      } catch (cleanupError) {
+        console.error('Error in fallback cleanup:', cleanupError);
+      }
+
+      toast.error('Error stopping camera', {
+        description: 'Some resources may not have been properly cleaned up',
+        duration: 5000
+      });
     }
   };
 
@@ -1062,6 +1154,319 @@ export default function OpenPoseAnalyzerPage() {
 
       // Shoulder angle
       ctx.fillText(`${Math.round(shoulderAngle)}°`, rightShoulderX + 30, shoulderY);
+    }
+  };
+
+  // Draw real skeleton from TensorFlow.js pose detection
+  const drawRealSkeleton = (ctx: CanvasRenderingContext2D | null, pose: any, width: number, height: number) => {
+    if (!ctx || !pose || !pose.keypoints) return;
+
+    // Create keypoint map for easy lookup
+    const keypointMap: { [key: string]: any } = {};
+    pose.keypoints.forEach((keypoint: any) => {
+      if (keypoint.name) {
+        keypointMap[keypoint.name] = keypoint;
+      }
+    });
+
+    // Define connections between keypoints
+    const connections = [
+      // Face
+      ['nose', 'left_eye'],
+      ['nose', 'right_eye'],
+      ['left_eye', 'left_ear'],
+      ['right_eye', 'right_ear'],
+
+      // Upper body
+      ['left_shoulder', 'right_shoulder'],
+      ['left_shoulder', 'left_elbow'],
+      ['right_shoulder', 'right_elbow'],
+      ['left_elbow', 'left_wrist'],
+      ['right_elbow', 'right_wrist'],
+
+      // Torso
+      ['left_shoulder', 'left_hip'],
+      ['right_shoulder', 'right_hip'],
+      ['left_hip', 'right_hip'],
+
+      // Lower body
+      ['left_hip', 'left_knee'],
+      ['right_hip', 'right_knee'],
+      ['left_knee', 'left_ankle'],
+      ['right_knee', 'right_ankle']
+    ];
+
+    // Draw connections
+    ctx.strokeStyle = '#4f46e5';
+    ctx.lineWidth = 4;
+
+    connections.forEach(([from, to]) => {
+      const fromKeypoint = keypointMap[from];
+      const toKeypoint = keypointMap[to];
+
+      if (
+        fromKeypoint && toKeypoint &&
+        fromKeypoint.score && toKeypoint.score &&
+        fromKeypoint.score > 0.5 && toKeypoint.score > 0.5
+      ) {
+        ctx.beginPath();
+        ctx.moveTo(fromKeypoint.x, fromKeypoint.y);
+        ctx.lineTo(toKeypoint.x, toKeypoint.y);
+        ctx.stroke();
+      }
+    });
+
+    // Draw keypoints
+    pose.keypoints.forEach((keypoint: any) => {
+      if (keypoint.score && keypoint.score > 0.5) {
+        const { x, y } = keypoint;
+
+        ctx.fillStyle = '#4f46e5';
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // Draw joint angles if enabled
+        if (showAngles) {
+          drawJointAngles(ctx, pose, keypointMap);
+        }
+      }
+    });
+  };
+
+  // Draw joint angles on the canvas
+  const drawJointAngles = (ctx: CanvasRenderingContext2D | null, pose: any, keypointMap: { [key: string]: any }) => {
+    if (!ctx) return;
+
+    const angles = calculateJointAngles(pose);
+
+    // Draw angles for specific joints
+    if (angles.rightElbow && keypointMap['right_elbow']) {
+      drawAngle(ctx, keypointMap['right_shoulder'], keypointMap['right_elbow'],
+                keypointMap['right_wrist'], angles.rightElbow);
+    }
+
+    if (angles.leftElbow && keypointMap['left_elbow']) {
+      drawAngle(ctx, keypointMap['left_shoulder'], keypointMap['left_elbow'],
+                keypointMap['left_wrist'], angles.leftElbow);
+    }
+
+    if (angles.rightShoulder && keypointMap['right_shoulder']) {
+      drawAngle(ctx, keypointMap['right_elbow'], keypointMap['right_shoulder'],
+                keypointMap['right_hip'], angles.rightShoulder);
+    }
+
+    if (angles.leftShoulder && keypointMap['left_shoulder']) {
+      drawAngle(ctx, keypointMap['left_elbow'], keypointMap['left_shoulder'],
+                keypointMap['left_hip'], angles.leftShoulder);
+    }
+
+    if (angles.rightKnee && keypointMap['right_knee']) {
+      drawAngle(ctx, keypointMap['right_hip'], keypointMap['right_knee'],
+                keypointMap['right_ankle'], angles.rightKnee);
+    }
+
+    if (angles.leftKnee && keypointMap['left_knee']) {
+      drawAngle(ctx, keypointMap['left_hip'], keypointMap['left_knee'],
+                keypointMap['left_ankle'], angles.leftKnee);
+    }
+  };
+
+  // Draw angle arc and text
+  const drawAngle = (
+    ctx: CanvasRenderingContext2D,
+    p1: any,
+    p2: any,
+    p3: any,
+    angle: number
+  ) => {
+    if (!p1 || !p2 || !p3 || !p1.score || !p2.score || !p3.score) return;
+    if (p1.score < 0.5 || p2.score < 0.5 || p3.score < 0.5) return;
+
+    // Draw angle arc
+    ctx.strokeStyle = 'rgba(79, 70, 229, 0.7)';
+    ctx.lineWidth = 2;
+
+    const angle1 = Math.atan2(p1.y - p2.y, p1.x - p2.x);
+    const angle2 = Math.atan2(p3.y - p2.y, p3.x - p2.x);
+
+    // Draw arc
+    ctx.beginPath();
+    ctx.arc(p2.x, p2.y, 20, angle1, angle2, false);
+    ctx.stroke();
+
+    // Draw angle text
+    ctx.fillStyle = '#4f46e5';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+
+    // Position text at midpoint of arc
+    const midAngle = (angle1 + angle2) / 2;
+    const textX = p2.x + 30 * Math.cos(midAngle);
+    const textY = p2.y + 30 * Math.sin(midAngle);
+
+    ctx.fillText(`${Math.round(angle)}°`, textX, textY);
+  };
+
+  // Calculate joint angles from pose
+  const calculateJointAngles = (pose: any): Record<string, number> => {
+    const angles: Record<string, number> = {};
+
+    if (!pose || !pose.keypoints) return angles;
+
+    // Create keypoint map for easy lookup
+    const kp: { [key: string]: any } = {};
+    pose.keypoints.forEach((keypoint: any) => {
+      if (keypoint.name) {
+        kp[keypoint.name] = keypoint;
+      }
+    });
+
+    // Calculate angle between three points
+    const calculateAngle = (p1: any, p2: any, p3: any): number => {
+      if (!p1 || !p2 || !p3) return 0;
+
+      const radians = Math.atan2(p3.y - p2.y, p3.x - p2.x) -
+                      Math.atan2(p1.y - p2.y, p1.x - p2.x);
+      let angle = Math.abs(radians * 180 / Math.PI);
+
+      // Ensure angle is between 0 and 180
+      if (angle > 180) {
+        angle = 360 - angle;
+      }
+
+      return angle;
+    };
+
+    // Calculate elbow angles
+    if (kp['left_shoulder'] && kp['left_elbow'] && kp['left_wrist']) {
+      angles.leftElbow = calculateAngle(
+        kp['left_shoulder'],
+        kp['left_elbow'],
+        kp['left_wrist']
+      );
+    }
+
+    if (kp['right_shoulder'] && kp['right_elbow'] && kp['right_wrist']) {
+      angles.rightElbow = calculateAngle(
+        kp['right_shoulder'],
+        kp['right_elbow'],
+        kp['right_wrist']
+      );
+    }
+
+    // Calculate shoulder angles
+    if (kp['left_elbow'] && kp['left_shoulder'] && kp['left_hip']) {
+      angles.leftShoulder = calculateAngle(
+        kp['left_elbow'],
+        kp['left_shoulder'],
+        kp['left_hip']
+      );
+    }
+
+    if (kp['right_elbow'] && kp['right_shoulder'] && kp['right_hip']) {
+      angles.rightShoulder = calculateAngle(
+        kp['right_elbow'],
+        kp['right_shoulder'],
+        kp['right_hip']
+      );
+    }
+
+    // Calculate hip angles
+    if (kp['left_shoulder'] && kp['left_hip'] && kp['left_knee']) {
+      angles.leftHip = calculateAngle(
+        kp['left_shoulder'],
+        kp['left_hip'],
+        kp['left_knee']
+      );
+    }
+
+    if (kp['right_shoulder'] && kp['right_hip'] && kp['right_knee']) {
+      angles.rightHip = calculateAngle(
+        kp['right_shoulder'],
+        kp['right_hip'],
+        kp['right_knee']
+      );
+    }
+
+    // Calculate knee angles
+    if (kp['left_hip'] && kp['left_knee'] && kp['left_ankle']) {
+      angles.leftKnee = calculateAngle(
+        kp['left_hip'],
+        kp['left_knee'],
+        kp['left_ankle']
+      );
+    }
+
+    if (kp['right_hip'] && kp['right_knee'] && kp['right_ankle']) {
+      angles.rightKnee = calculateAngle(
+        kp['right_hip'],
+        kp['right_knee'],
+        kp['right_ankle']
+      );
+    }
+
+    return angles;
+  };
+
+  // Generate feedback based on pose and angles
+  const generatePoseFeedback = (pose: any, angles: Record<string, number>) => {
+    if (!pose || !angles) return;
+
+    const newFeedback: string[] = [];
+
+    // Check for specific posture issues
+
+    // Check knee angles
+    if (angles.leftKnee && angles.leftKnee < 90) {
+      newFeedback.push("Left knee is bent too much, try to straighten it more");
+    }
+
+    if (angles.rightKnee && angles.rightKnee < 90) {
+      newFeedback.push("Right knee is bent too much, try to straighten it more");
+    }
+
+    // Check elbow angles
+    if (angles.leftElbow && angles.leftElbow < 70) {
+      newFeedback.push("Left elbow is bent too much");
+    }
+
+    if (angles.rightElbow && angles.rightElbow < 70) {
+      newFeedback.push("Right elbow is bent too much");
+    }
+
+    // Check shoulder alignment
+    if (angles.leftShoulder && angles.rightShoulder) {
+      const shoulderDiff = Math.abs(angles.leftShoulder - angles.rightShoulder);
+      if (shoulderDiff > 15) {
+        newFeedback.push("Your shoulders are not aligned, try to level them");
+      }
+    }
+
+    // Check for good posture
+    if (
+      angles.leftShoulder && angles.rightShoulder &&
+      angles.leftShoulder > 80 && angles.rightShoulder > 80 &&
+      Math.abs(angles.leftShoulder - angles.rightShoulder) < 10
+    ) {
+      newFeedback.push("Good shoulder posture, keep it up!");
+    }
+
+    // Add feedback if we have new insights
+    if (newFeedback.length > 0) {
+      // Only add new feedback if it's different from the last one
+      const lastFeedback = feedback[0];
+      const newFeedbackToAdd = newFeedback.filter(msg => msg !== lastFeedback);
+
+      if (newFeedbackToAdd.length > 0) {
+        setFeedback(prev => [...newFeedbackToAdd, ...prev].slice(0, 5));
+      }
     }
   };
 

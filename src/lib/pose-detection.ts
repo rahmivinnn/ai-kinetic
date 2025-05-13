@@ -844,65 +844,8 @@ const getJointKeypoints = (
 };
 
 // Check if an angle is out of the acceptable range for a joint
-export const isAngleOutOfRange = (jointName: string, angle: number): boolean => {
-  // Define acceptable angle ranges for different joints
-  const angleRanges: {[key: string]: [number, number]} = {
-    // Upper body
-    leftElbow: [0, 180],      // Full range of motion for elbow
-    rightElbow: [0, 180],
-    leftShoulder: [0, 180],   // Shoulder range
-    rightShoulder: [0, 180],
-
-    // Lower body
-    leftHip: [70, 180],       // Hip range (standing to sitting)
-    rightHip: [70, 180],
-    leftKnee: [0, 180],       // Knee range
-    rightKnee: [0, 180],
-
-    // Spine and neck
-    spine: [150, 180],        // Spine should be relatively straight
-    neck: [140, 180]          // Neck should be upright
-  };
-
-  // Check if we have a range defined for this joint
-  if (angleRanges[jointName]) {
-    const [min, max] = angleRanges[jointName];
-    return angle < min || angle > max;
-  }
-
-  // Default to not out of range if we don't have specific criteria
-  return false;
-};
 
 // Check if an angle is near the ideal value for a joint
-export const isAngleNearIdeal = (jointName: string, angle: number): boolean => {
-  // Define ideal angles for different joints and postures
-  const idealAngles: {[key: string]: number} = {
-    // Standing posture
-    leftElbow: 170,      // Nearly straight
-    rightElbow: 170,
-    leftShoulder: 170,   // Arms at sides
-    rightShoulder: 170,
-    leftHip: 175,        // Standing straight
-    rightHip: 175,
-    leftKnee: 175,       // Legs straight
-    rightKnee: 175,
-    spine: 178,          // Spine straight
-    neck: 165            // Neck slightly forward
-  };
-
-  // Tolerance for considering an angle "near ideal"
-  const tolerance = 10; // degrees
-
-  // Check if we have an ideal angle defined for this joint
-  if (idealAngles[jointName] !== undefined) {
-    const ideal = idealAngles[jointName];
-    return Math.abs(angle - ideal) <= tolerance;
-  }
-
-  // Default to not ideal if we don't have specific criteria
-  return false;
-};
 
 // Draw angle between three points
 export const drawAngle = (

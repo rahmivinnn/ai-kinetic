@@ -140,6 +140,99 @@
   }
 }
 
+/* Fix for navigation menu clickability issues */
+.main-nav-link {
+  position: relative;
+  z-index: 20;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transform: translateZ(0); /* Hardware acceleration */
+  backface-visibility: hidden; /* Prevent flickering */
+  will-change: transform, opacity; /* Optimize for animations */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.main-nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+  opacity: 0.7;
+}
+
+.main-nav-link:hover::after,
+.main-nav-link[data-active="true"]::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.main-nav-link:active {
+  transform: scale(0.97);
+}
+
+.main-nav-link span {
+  pointer-events: none;
+}
+
+/* Ripple effect for clicks */
+.main-nav-link .ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  animation: ripple-animation 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Ensure navigation items are clickable */
+header nav a,
+header button {
+  position: relative;
+  z-index: 20;
+  isolation: isolate;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  touch-action: manipulation;
+  transform: translateZ(0); /* Hardware acceleration */
+}
+
+/* Mobile menu animation */
+.mobile-menu-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.mobile-menu-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.mobile-menu-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mobile-menu-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
 @keyframes progress {
   0% {
     transform: translateX(-100%);
